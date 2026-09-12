@@ -1,0 +1,190 @@
+{
+  "app_name": "HEALTHCARE CONNECT",
+  "personality": "1 iOS-Native Clean (Adapted with Professional Government Healthcare Mint & Slate Palette)",
+  "personality_one_liner": "A rigorous, trustworthy, and empathetic mobile field system for government healthcare workers and administrators.",
+  "color": {
+    "surface": "#F8FAFC",
+    "onSurface": "#0F172A",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1E293B",
+    "surfaceTertiary": "#F1F5F9",
+    "onSurfaceTertiary": "#475569",
+    "surfaceInverse": "#0F172A",
+    "onSurfaceInverse": "#F8FAFC",
+    "brand": "#0D9488",
+    "brandPrimary": "#0D9488",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#14B8A6",
+    "onBrandSecondary": "#0F172A",
+    "brandTertiary": "#CCFBF1",
+    "onBrandTertiary": "#115E59",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "info": "#0EA5E9",
+    "onInfo": "#FFFFFF",
+    "border": "#E2E8F0",
+    "borderStrong": "#CBD5E1",
+    "divider": "#F1F5F9"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Inter",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous iOS vertical rhythm with 16-24px padding, 56pt minimum touch targets, and sticky bottom CTAs with safe area clearance.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use frosted glass header and bottom navigation bar over scrolling content",
+      "Apply subtle translucent tinted backgrounds for featured alert cards"
+    ],
+    "dont's": [
+      "Do not blur form inputs or body text regions",
+      "Do not use low contrast text on glass surfaces"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "AuthScreen",
+      "purpose": "Secure JWT login with instant role switcher for Admin and ASHA/ANM Health Worker plus quick demo account selectors.",
+      "states": {
+        "loading": "Authenticating credentials and loading encrypted local SQLite database...",
+        "empty": "Please enter credentials or select a quick demo persona to begin.",
+        "error": "Authentication failed. Please verify your ID or network status."
+      },
+      "layout": "Centered clean card layout with HEALTHCARE CONNECT branding badge, role selector segmented pills, worker ID & password inputs, and quick one-tap demo login buttons at the bottom."
+    },
+    {
+      "name": "HealthWorkerDashboard",
+      "purpose": "Primary operational command center for field workers displaying live summary counts, sync status, and quick action tiles.",
+      "states": {
+        "loading": "Synchronising offline records and fetching live ANC/Child registries...",
+        "empty": "No registered beneficiaries found in your assigned sector. Tap + Register Pregnancy to start.",
+        "error": "Failed to load dashboard metrics. Tap retry or check local storage."
+      },
+      "layout": "Vertical scrollable feed with top sticky frosted header (Network status, Sync queue badge, Profile avatar), offline banner notification, summary metric cards grid, high-priority alerts banner, quick action grid, and recent beneficiary updates list."
+    },
+    {
+      "name": "PregnancyRegistryList",
+      "purpose": "Complete searchable and filterable directory of registered pregnant women with gestational age, EDD, and trimester badges.",
+      "states": {
+        "loading": "Querying pregnancy records across villages...",
+        "empty": "No pregnancy records match your filter criteria.",
+        "error": "Error loading pregnancy registry. Tap retry."
+      },
+      "layout": "Search bar with multi-criteria filter chips (District, Block, Village, Trimester 1/2/3, High Risk), scrollable beneficiary list cards showing mother name, husband name, gestational age, EDD, trimester badge, and risk indicator."
+    },
+    {
+      "name": "PregnancyDetailView",
+      "purpose": "Comprehensive clinical record for a selected pregnancy including trimester visual timeline, ANC check-up status, vitals, and immunization history.",
+      "states": {
+        "loading": "Loading clinical history and ANC visit logs...",
+        "empty": "No ANC visits recorded yet. Tap Record ANC Visit to add first check-up.",
+        "error": "Could not retrieve pregnancy details."
+      },
+      "layout": "Header banner with mother profile, contact details, auto-calculated gestational age & EDD card, interactive Trimester Visual Timeline bar, tabbed section for ANC Visits (Completed/Upcoming/Overdue with status badges), Vitals log, and Immunization TT schedule."
+    },
+    {
+      "name": "ANCVisitForm",
+      "purpose": "Structured data entry form for recording ANC check-up vitals (BP, Weight, Hemoglobin, Fetal Heart Rate) and clinical notes.",
+      "states": {
+        "loading": "Initializing form validators...",
+        "empty": "Fill in the required vitals and assessment details.",
+        "error": "Validation error. Please check blood pressure format and hemoglobin value."
+      },
+      "layout": "KeyboardAvoidingView container with step-by-step clinical input fields (ANC Visit Number dropdown, BP systolic/diastolic, Weight kg, Hemoglobin g/dL, Fundal height, Fetal Heart Rate, High Risk flags), and sticky bottom Save Visit CTA."
+    },
+    {
+      "name": "ChildRegistryScreen",
+      "purpose": "Directory of children linked to mothers with complete immunization tracking against national vaccination schedules.",
+      "states": {
+        "loading": "Loading child immunization records...",
+        "empty": "No child records registered. Tap Register Child to add a newborn.",
+        "error": "Failed to load child immunization schedule."
+      },
+      "layout": "Search & filter header, list of registered children with age, mother's name, gender, vaccination progress bar, and status pills (BCG, OPV, Pentavalent, Measles)."
+    },
+    {
+      "name": "AlertEngineScreen",
+      "purpose": "Centralized warning and notification center highlighting missed ANC visits, high-risk pregnancies, and overdue infant immunizations.",
+      "states": {
+        "loading": "Running alert batching engine across registries...",
+        "empty": "All beneficiary records are up to date. No pending alerts.",
+        "error": "Failed to compute alert engine batches."
+      },
+      "layout": "Segmented tab filter (All Alerts, High Risk, Missed ANC, Immunization Due), list of warning cards with severity indicator, beneficiary name, due date countdown, and one-tap action button (Call Mother / Schedule Visit)."
+    },
+    {
+      "name": "AdminDashboard",
+      "purpose": "Administrative oversight command center displaying district-wide KPIs, analytics charts, and high-level health metrics.",
+      "states": {
+        "loading": "Aggregating district analytics and health worker reports...",
+        "empty": "No analytics data available for selected administrative block.",
+        "error": "Error loading administrative KPIs."
+      },
+      "layout": "Top executive KPI summary cards (Total Registrations, High Risk Rate, ANC Completion %, Child Immunisation %), interactive district analytics charts (Trimester distribution, Vaccine coverage progress bars), and health worker performance table."
+    },
+    {
+      "name": "SyncQueueScreen",
+      "purpose": "Offline data queue manager displaying pending records waiting for internet connectivity and manual sync controls.",
+      "states": {
+        "loading": "Checking local SQLite offline queue...",
+        "empty": "Offline queue is empty. All records synchronized with live server.",
+        "error": "Sync transmission error. Records preserved in local queue."
+      },
+      "layout": "Connection status banner (Online / Simulated Offline toggle switch), Manual 'Sync Now' action button with progress indicator, list of queued offline transactions (Pregnancy registrations, ANC logs, Immunizations) with timestamp and payload preview."
+    }
+  ],
+  "images": {
+    "healthcare_hero": {
+      "url": "https://images.unsplash.com/photo-1596522868339-a476e327e5e2?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "dark": "https://images.unsplash.com/photo-1596522868339-a476e327e5e2?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "alt": "Government healthcare worker assisting mother and child in rural community"
+    },
+    "mother_baby": {
+      "url": "https://images.unsplash.com/photo-1632661772592-7c6b753fcaed?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "alt": "Mother and child receiving maternal healthcare services"
+    }
+  },
+  "instructions_to_main_agent": "Ensure absolute adherence to iOS-Native Clean styling with professional government healthcare mint & slate tokens (#0D9488 brand, #F8FAFC surface). Implement offline data queue with simulation toggle switch in header/settings, automatic gestational age & EDD calculation on pregnancy registration, trimester visual timeline, comprehensive ANC visit and immunisation tracking, role switcher on login screen, and Admin KPI dashboard. Every screen must have loading, empty, and error states. Use Ionicons exclusively."
+}
