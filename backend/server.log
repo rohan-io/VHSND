@@ -1,0 +1,42 @@
+INFO:     Started server process [11312]
+INFO:     Waiting for application startup.
+ERROR:    Traceback (most recent call last):
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\starlette\routing.py", line 732, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\starlette\routing.py", line 608, in __aenter__
+    await self._router.startup()
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\starlette\routing.py", line 709, in startup
+    await handler()
+  File "E:\project\VHSMD\app\backend\server.py", line 860, in startup_event
+    await seed_database_if_empty()
+  File "E:\project\VHSMD\app\backend\server.py", line 424, in seed_database_if_empty
+    count_users = await db.users.count_documents({})
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rohan Behera\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\collection.py", line 1913, in count_documents
+    return self._retryable_non_cursor_read(_cmd, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\collection.py", line 1922, in _retryable_non_cursor_read
+    with client._tmp_session(session) as s:
+  File "C:\Users\Rohan Behera\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\mongo_client.py", line 1840, in _tmp_session
+    s = self._ensure_session(session)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\mongo_client.py", line 1823, in _ensure_session
+    return self.__start_session(True, causal_consistency=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\mongo_client.py", line 1766, in __start_session
+    self._topology._check_implicit_session_support()
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\topology.py", line 573, in _check_implicit_session_support
+    self._check_session_support()
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\topology.py", line 589, in _check_session_support
+    self._select_servers_loop(
+  File "E:\project\VHSMD\app\backend\venv\Lib\site-packages\pymongo\topology.py", line 259, in _select_servers_loop
+    raise ServerSelectionTimeoutError(
+pymongo.errors.ServerSelectionTimeoutError: customer-apps-shard-00-02.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),customer-apps-shard-00-00.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms),customer-apps-shard-00-01.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms), Timeout: 30s, Topology Description: <TopologyDescription id: 6a955ec3b2f506dc03a6478e, topology_type: ReplicaSetNoPrimary, servers: [<ServerDescription ('customer-apps-shard-00-00.hmy0jn.mongodb.net', 27017) server_type: Unknown, rtt: None, error=NetworkTimeout('customer-apps-shard-00-00.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('customer-apps-shard-00-01.hmy0jn.mongodb.net', 27017) server_type: Unknown, rtt: None, error=NetworkTimeout('customer-apps-shard-00-01.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>, <ServerDescription ('customer-apps-shard-00-02.hmy0jn.mongodb.net', 27017) server_type: Unknown, rtt: None, error=NetworkTimeout('customer-apps-shard-00-02.hmy0jn.mongodb.net:27017: timed out (configured timeouts: socketTimeoutMS: 20000.0ms, connectTimeoutMS: 20000.0ms)')>]>
+
+ERROR:    Application startup failed. Exiting.

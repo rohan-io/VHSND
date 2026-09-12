@@ -1,0 +1,8 @@
+yarn install v1.22.22
+$ ./scripts/cmd-guard.js --preinstall
+[1/4] Resolving packages...
+warning Resolution field "postcss@8.5.10" is incompatible with requested version "postcss@~8.4.32"
+warning Resolution field "uuid@11.1.1" is incompatible with requested version "uuid@^7.0.3"
+warning Resolution field "@eslint/plugin-kit@0.3.4" is incompatible with requested version "@eslint/plugin-kit@^0.2.8"
+warning Resolution field "@eslint/plugin-kit@0.3.4" is incompatible with requested version "@eslint/plugin-kit@^0.4.1"
+[2/4] Fetching packages...
