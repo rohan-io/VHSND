@@ -13,10 +13,15 @@ import type { Theme } from "@/src/constants/theme";
  * `{DEMO_MODE && <DemoCredentialsHint />}` line in app/(auth)/login.tsx. It also
  * hides itself automatically whenever EXPO_PUBLIC_DEMO_MODE !== "true".
  */
-const ACCOUNTS: { roleKey: "roleHealthWorker" | "roleAdministrator"; username: string; password: string }[] = [
-  { roleKey: "roleHealthWorker", username: "worker01", password: "Worker@123" },
+const ACCOUNTS: { roleKey: "roleAnm" | "roleAsha" | "roleAdministrator"; username: string; password: string }[] = [
+  { roleKey: "roleAnm", username: "worker01", password: "Worker@123" },
+  { roleKey: "roleAsha", username: "worker02", password: "Worker@123" },
   { roleKey: "roleAdministrator", username: "admin", password: "Admin@123" },
 ];
+
+// Beneficiary has no fixed password (mobile + mock OTP instead), so it's listed
+// separately from the username/password ACCOUNTS table above.
+const BENEFICIARY_DEMO_MOBILE = "9810010031";
 
 export const DemoCredentialsHint: React.FC = () => {
   const t = useTheme();
@@ -38,6 +43,10 @@ export const DemoCredentialsHint: React.FC = () => {
           </Text>
         </View>
       ))}
+      <View style={styles.row}>
+        <Text style={styles.role}>{tr.common.roleBeneficiary}</Text>
+        <Text style={styles.creds}>{BENEFICIARY_DEMO_MOBILE} / {tr.login.anySixDigitOtp}</Text>
+      </View>
       <Text style={styles.note}>
         {tr.login.demoNote}
       </Text>

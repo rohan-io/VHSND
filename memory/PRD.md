@@ -13,6 +13,8 @@ child immunisation, alerts, offline sync, and an admin analytics dashboard.
 - Administrator: `admin` / `Admin@123` — Dilip Acharya (CMO)
 - Health Worker: `worker01` / `Worker@123` — Smruti Malla (ANM)
 - Also worker02..05 / `Worker@123`
+- Beneficiary (DEMO/MOCK, see backlog below): mobile `9810010031` + any 6-digit OTP —
+  always resolves to the one fixed seeded mother, Durga Hembram (PREG-2026-1031)
 
 ## Implemented (2026-06)
 - Auth: one-tap demo persona switcher, JWT login, role-based redirect
@@ -29,5 +31,13 @@ child immunisation, alerts, offline sync, and an admin analytics dashboard.
   (8 mothers across trimesters + high-risk, 5 children) with due/overdue vaccine & ANC alerts
 
 ## Backlog (P1/P2)
+- P1: Beneficiary login (mobile+OTP) is currently a DEMO/MOCK only — one fixed seeded
+  account (DEMO_BENEFICIARY_USER in frontend/src/api/demoDb.ts), any 6-digit OTP
+  accepted, no real SMS/OTP provider. It works only because the on-device demo
+  dataset holds every mother's records and we just point one account at one record.
+  A real beneficiary rollout needs a backend that authenticates a mother by verified
+  mobile number and returns ONLY her own records — a phone can't hold (and shouldn't
+  receive) a full local copy of district data the way the ANM/ASHA/Admin demo does.
+  Blocks real beneficiary use; not required for the ANM/ASHA/Admin demo paths.
 - P2: Audit log viewer UI, reschedule child vaccine UI, admin district filters
 - P2: Charts library upgrade, CSV export

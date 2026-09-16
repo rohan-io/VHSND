@@ -17,6 +17,8 @@ export default function Index() {
       if (user) {
         if (user.role === "Administrator") {
           router.replace("/(admin)");
+        } else if (user.role === "Beneficiary") {
+          router.replace("/(beneficiary)" as any);
         } else {
           router.replace("/(tabs)");
         }
