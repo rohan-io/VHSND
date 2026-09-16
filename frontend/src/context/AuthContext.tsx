@@ -40,6 +40,13 @@ export const DEMO_USERS: { role: UserRole; username: string; label: string; subL
     label: "Dilip Acharya (Admin / CMO)",
     subLabel: "District Health Mission • Jajpur",
     name: "Dilip Acharya"
+  },
+  {
+    role: "Beneficiary",
+    username: "beneficiary-demo",
+    label: "Durga Hembram (Beneficiary)",
+    subLabel: "Gandhapal • Demo-only mock account",
+    name: "Durga Hembram"
   }
 ];
 

@@ -21,9 +21,10 @@ import { LoadError } from "@/src/components/LoadError";
 import { ChatAssistant } from "@/src/components/ChatAssistant";
 import { useAuth } from "@/src/context/AuthContext";
 import { useOfflineSync } from "@/src/context/OfflineSyncContext";
-import { getDashboard, DashboardResponse } from "@/src/api/mch";
+import { getDashboard, DashboardResponse, getSupervisedTeam } from "@/src/api/mch";
 import { priorityColor } from "@/src/utils/priority";
 import { priorityLabel } from "@/src/i18n/strings";
+import type { SupervisedTeamResponse } from "@/src/types";
 
 // Keep the dashboard preview short; the full list lives on the Alerts screen.
 const CRITICAL_PREVIEW = 4;
@@ -51,6 +52,13 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showCaseload, setShowCaseload] = useState(false);
 
+  // ANM supervisory view over her ASHAs — a separate fetch from her own
+  // dashboard data above, gated to worker_type "ANM" so it's a no-op for ASHA.
+  const isAnm = user?.worker_type === "ANM";
+  const [team, setTeam] = useState<SupervisedTeamResponse | null>(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     try {
       setError(null);
@@ -64,10 +72,24 @@ export default function DashboardScreen() {
     }
   }, []);
 
+  const loadTeam = useCallback(async () => {
+    if (!isAnm || !user) return;
+    setTeamLoading(true);
+    try {
+      setTeamError(null);
+      setTeam(await getSupervisedTeam(user.id));
+    } catch (e: any) {
+      setTeamError(e.message || tr.supervisedTeam.loadFailed);
+    } finally {
+      setTeamLoading(false);
+    }
+  }, [isAnm, user?.id]);
+
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+      loadTeam();
+    }, [load, loadTeam])
   );
 
   const onRefresh = () => {
@@ -266,6 +288,97 @@ export default function DashboardScreen() {
             </Pressable>
           ))}
 
+          {/* ANM supervisory view — separate from her own worklist above.
+              Read-only: view her ASHAs' work, never act on their behalf. */}
+          {isAnm && (
+            <View testID="supervised-team-section">
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitleFlush}>{tr.supervisedTeam.title}</Text>
+              </View>
+              <Text style={styles.teamSubtitle}>{tr.supervisedTeam.subtitle}</Text>
+
+              {teamError ? (
+                <LoadError message={teamError} onRetry={loadTeam} testID="supervised-team-error" />
+              ) : teamLoading && !team ? (
+                <View style={styles.teamLoadingRow}>
+                  <ActivityIndicator color={t.colors.brand} />
+                </View>
+              ) : (
+                <>
+                  <View style={styles.rosterCard} testID="supervised-team-card">
+                    {(team?.ashas || []).length === 0 ? (
+                      <Text style={styles.emptyMuted} testID="supervised-team-empty">{tr.supervisedTeam.empty}</Text>
+                    ) : (
+                      team!.ashas.map((a, i) => {
+                        const noActivity = !a.registered_pregnancies && !a.anc_visits_conducted && !a.children_covered;
+                        return (
+                          <View
+                            key={a.worker_id}
+                            testID={`supervised-asha-${a.worker_id}`}
+                            style={[styles.rosterRow, i > 0 && styles.rosterRowDivider, noActivity && styles.rosterRowMuted]}
+                          >
+                            <View style={[styles.rosterAvatar, noActivity && styles.rosterAvatarMuted]}>
+                              <Text style={styles.rosterAvatarText}>{a.name.charAt(0)}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.rosterName} numberOfLines={1}>{a.name}</Text>
+                              <Text style={styles.rosterSector} numberOfLines={1}>{a.sector}</Text>
+                            </View>
+                            {noActivity ? (
+                              <Text style={styles.rosterNoActivity}>{tr.adminDashboard.noActivity}</Text>
+                            ) : (
+                              <View style={styles.rosterStats}>
+                                <View style={styles.rStat}>
+                                  <Text style={styles.rStatNum}>{a.registered_pregnancies}</Text>
+                                  <Text style={styles.rStatLabel}>{tr.adminDashboard.wpPregnancies}</Text>
+                                </View>
+                                <View style={styles.rStat}>
+                                  <Text style={styles.rStatNum}>{a.anc_visits_conducted}</Text>
+                                  <Text style={styles.rStatLabel}>{tr.adminDashboard.wpAncVisits}</Text>
+                                </View>
+                                <View style={styles.rStat}>
+                                  <Text style={styles.rStatNum}>{a.children_covered}</Text>
+                                  <Text style={styles.rStatLabel}>{tr.adminDashboard.wpChildren}</Text>
+                                </View>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })
+                    )}
+                  </View>
+
+                  <Text style={styles.sectionTitle}>{tr.supervisedTeam.escalationsTitle}</Text>
+                  {(team?.critical_escalations || []).length === 0 ? (
+                    <View style={styles.emptyCard} testID="supervised-escalations-empty">
+                      <Ionicons name="checkmark-circle-outline" size={22} color={t.colors.success} />
+                      <Text style={styles.emptyText}>{tr.supervisedTeam.escalationsEmpty}</Text>
+                    </View>
+                  ) : (
+                    team!.critical_escalations.map((a) => (
+                      <Pressable
+                        key={a.id}
+                        testID={`supervised-escalation-${a.id}`}
+                        onPress={() => router.push(`/pregnancy/${a.related_entity_id}` as any)}
+                        style={styles.criticalRow}
+                      >
+                        <Ionicons name="warning" size={20} color={t.colors.onStatus} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.criticalName} numberOfLines={1}>{a.title}</Text>
+                          <Text style={styles.criticalSub} numberOfLines={2}>{a.message}</Text>
+                          <Text style={styles.criticalReasons} numberOfLines={1}>
+                            {tr.alerts.assignedPrefix} {a.assigned_worker_name || "—"}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={t.colors.onStatus} />
+                      </Pressable>
+                    ))
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
           {/* Caseload overview: reference numbers, collapsed by default so the
               screen leads with work, not statistics */}
           <Pressable
@@ -410,4 +523,25 @@ const makeStyles = (t: Theme) =>
     recentSub: { fontSize: 12, color: t.colors.textSecondary, marginTop: 1 },
     disclaimerBox: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 20, paddingHorizontal: 4 },
     disclaimerText: { flex: 1, fontSize: 12, color: t.colors.textMuted, fontStyle: "italic" },
+
+    // ANM supervisory section — roster styles mirror app/(admin)/index.tsx's
+    // field-team panel so the same "who's active, who isn't" language reads
+    // the same for an ANM's smaller team as it does for the district roster.
+    teamSubtitle: { fontSize: 12, color: t.colors.textSecondary, marginTop: -4, marginBottom: 10 },
+    teamLoadingRow: { alignItems: "center", paddingVertical: 20 },
+    emptyMuted: { fontSize: 12, color: t.colors.textMuted, fontStyle: "italic", padding: 14 },
+    rosterCard: { backgroundColor: t.colors.surfaceSecondary, borderRadius: t.radius.md, borderWidth: 1, borderColor: t.colors.border, overflow: "hidden" },
+    rosterRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
+    rosterRowDivider: { borderTopWidth: 1, borderTopColor: t.colors.divider },
+    rosterRowMuted: { opacity: 0.6 },
+    rosterAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: t.colors.brandSecondaryLight, alignItems: "center", justifyContent: "center" },
+    rosterAvatarMuted: { backgroundColor: t.colors.surfaceTertiary },
+    rosterAvatarText: { fontSize: 14, fontWeight: "800", color: t.colors.brandSecondaryDark },
+    rosterName: { fontSize: 13, fontWeight: "700", color: t.colors.textPrimary },
+    rosterSector: { fontSize: 11, color: t.colors.textSecondary, marginTop: 1 },
+    rosterNoActivity: { fontSize: 11, fontWeight: "700", color: t.colors.textMuted, fontStyle: "italic" },
+    rosterStats: { flexDirection: "row", gap: 14 },
+    rStat: { alignItems: "center" },
+    rStatNum: { fontSize: 14, fontWeight: "800", color: t.colors.textPrimary },
+    rStatLabel: { fontSize: 10, color: t.colors.textMuted, fontWeight: "700", marginTop: 1 },
   });

@@ -7,6 +7,7 @@ import {
   MaternalImmunization,
   NotificationItem,
   PregnancyRecord,
+  SupervisedTeamResponse,
 } from "@/src/types";
 
 // ---- Dashboard ----
@@ -139,3 +140,7 @@ export const markNotificationRead = (id: string) =>
 // ---- Admin ----
 export const getAdminKpis = () => apiRequest<any>("/admin/kpis");
 export const getAuditLogs = () => apiRequest<any[]>("/audit-logs");
+
+// ---- Health workers (ANM supervisory view over her ASHAs) ----
+export const getSupervisedTeam = (anmId: string) =>
+  apiRequest<SupervisedTeamResponse>(`/health-workers/${anmId}/supervised-team`);

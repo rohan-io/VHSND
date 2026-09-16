@@ -28,8 +28,14 @@ export default function LoginScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const { login, isLoading } = useAuth();
 
-  const roleTitle = (role: "Health Worker" | "Administrator") =>
-    role === "Administrator" ? tr.login.adminLogin : tr.login.healthWorkerLogin;
+  const roleTitle = (role: "ANM" | "ASHA" | "Administrator" | "Beneficiary") =>
+    role === "Administrator"
+      ? tr.login.adminLogin
+      : role === "Beneficiary"
+      ? tr.login.beneficiaryLogin
+      : role === "ASHA"
+      ? tr.login.ashaLogin
+      : tr.login.anmLogin;
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +44,15 @@ export default function LoginScreen() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"Health Worker" | "Administrator" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"ANM" | "ASHA" | "Administrator" | "Beneficiary" | null>(null);
+
+  // Beneficiary flow — DEMO/MOCK only (see demoDb.ts DEMO_BENEFICIARY_USER):
+  // a real mobile+OTP flow needs an SMS provider and a backend to verify
+  // against; here any 6-digit code is accepted and every login resolves to
+  // the same fixed seeded account.
+  const [benStep, setBenStep] = useState<"mobile" | "otp">("mobile");
+  const [benMobile, setBenMobile] = useState("");
+  const [benOtp, setBenOtp] = useState("");
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -62,10 +76,13 @@ export default function LoginScreen() {
     }
   };
 
-  const selectRole = (role: "Health Worker" | "Administrator") => {
+  const selectRole = (role: "ANM" | "ASHA" | "Administrator" | "Beneficiary") => {
     setSelectedRole(role);
     setUsername("");
     setPassword("");
+    setBenStep("mobile");
+    setBenMobile("");
+    setBenOtp("");
     setErrorMsg(null);
   };
 
@@ -73,8 +90,66 @@ export default function LoginScreen() {
     setSelectedRole(null);
     setUsername("");
     setPassword("");
+    setBenStep("mobile");
+    setBenMobile("");
+    setBenOtp("");
     setErrorMsg(null);
   };
+
+  const handleSendOtp = () => {
+    if (!/^\d{10}$/.test(benMobile.trim())) {
+      setErrorMsg(tr.login.needMobile);
+      return;
+    }
+    setErrorMsg(null);
+    // Demo speed: pre-fill a valid-looking OTP instead of making the reviewer
+    // guess one — any 6-digit code would be accepted anyway.
+    setBenOtp("123456");
+    setBenStep("otp");
+  };
+
+  const handleBeneficiaryLogin = async () => {
+    if (!/^\d{6}$/.test(benOtp.trim())) {
+      setErrorMsg(tr.login.needOtp);
+      return;
+    }
+    setErrorMsg(null);
+    setSubmitting(true);
+    try {
+      // Sentinel username, not benMobile — every OTP-verified beneficiary
+      // login always resolves to the one fixed demo account (see demoDb.ts).
+      await login("beneficiary-demo", "otp-verified");
+      router.replace("/(beneficiary)" as any);
+    } catch (err: any) {
+      setErrorMsg(err.message || tr.login.invalidCreds);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderRoleTile = (
+    key: "anm" | "asha" | "admin" | "beneficiary",
+    role: "ANM" | "ASHA" | "Administrator" | "Beneficiary",
+    icon: keyof typeof Ionicons.glyphMap,
+    bg: string,
+    fg: string,
+    label: string,
+    desc: string,
+  ) => (
+    <Pressable
+      key={key}
+      testID={`role-${key}`}
+      onPress={() => selectRole(role)}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${desc}`}
+      style={({ pressed }) => [styles.roleTile, pressed && styles.pressed]}
+    >
+      <View style={[styles.roleTileIcon, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={26} color={fg} />
+      </View>
+      <Text style={styles.roleTileLabel}>{label}</Text>
+    </Pressable>
+  );
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -111,46 +186,28 @@ export default function LoginScreen() {
         {/* Demo-only credentials hint — remove for production (see component) */}
         {DEMO_MODE && <DemoCredentialsHint />}
 
-        {/* Role selection (shown until a role is chosen) */}
+        {/* Role selection (shown until a role is chosen) — 2x2 grid, one tile per role.
+            Each tile's tint is pulled from the existing token ramps only (brand
+            orange, brandSecondary green, info teal, inkBar) so all four read as
+            distinct identities without introducing a single new color. */}
         {!selectedRole && (
           <View style={styles.credSection}>
             <Text style={styles.sectionLabel}>{tr.login.selectRole}</Text>
-            <View style={styles.credGrid}>
-              <Pressable
-                testID="role-health-worker"
-                onPress={() => selectRole("Health Worker")}
-                style={({ pressed }) => [styles.credCard, pressed && styles.pressed]}
-              >
-                <View style={[styles.credIcon, { backgroundColor: t.colors.brandLight }]}>
-                  <Ionicons name="woman" size={18} color={t.colors.brandDark} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.credRole}>{tr.login.healthWorkerLogin}</Text>
-                  <Text style={styles.credText}>{tr.login.healthWorkerDesc}</Text>
-                </View>
-                <Ionicons name="chevron-forward-circle-outline" size={20} color={t.colors.textMuted} />
-              </Pressable>
-
-              <Pressable
-                testID="role-admin"
-                onPress={() => selectRole("Administrator")}
-                style={({ pressed }) => [styles.credCard, pressed && styles.pressed]}
-              >
-                <View style={[styles.credIcon, { backgroundColor: t.colors.surfaceTertiary }]}>
-                  <Ionicons name="shield-checkmark" size={18} color={t.colors.textSecondary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.credRole}>{tr.login.adminLogin}</Text>
-                  <Text style={styles.credText}>{tr.login.adminDesc}</Text>
-                </View>
-                <Ionicons name="chevron-forward-circle-outline" size={20} color={t.colors.textMuted} />
-              </Pressable>
+            <View style={styles.roleGrid}>
+              <View style={styles.roleGridRow}>
+                {renderRoleTile("anm", "ANM", "medkit", t.colors.brandLight, t.colors.brandDark, tr.login.anmLogin, tr.login.anmDesc)}
+                {renderRoleTile("asha", "ASHA", "megaphone", t.colors.brandSecondaryLight, t.colors.brandSecondaryDark, tr.login.ashaLogin, tr.login.ashaDesc)}
+              </View>
+              <View style={styles.roleGridRow}>
+                {renderRoleTile("admin", "Administrator", "shield-checkmark", t.colors.inkBar, t.colors.onInkBar, tr.login.adminLogin, tr.login.adminDesc)}
+                {renderRoleTile("beneficiary", "Beneficiary", "heart", t.colors.infoLight, t.colors.infoText, tr.login.beneficiaryLogin, tr.login.beneficiaryDesc)}
+              </View>
             </View>
           </View>
         )}
 
-        {/* Credentials Form (shown after role selected) */}
-        {selectedRole && (
+        {/* Credentials Form (ANM / ASHA / Administrator — shown after role selected) */}
+        {(selectedRole === "ANM" || selectedRole === "ASHA" || selectedRole === "Administrator") && (
         <View style={styles.formCard}>
           <View style={styles.formHeaderRow}>
             <Text style={styles.formTitle}>{roleTitle(selectedRole)}</Text>
@@ -267,6 +324,112 @@ export default function LoginScreen() {
               </>
             )}
           </Pressable>
+        </View>
+        )}
+
+        {/* Beneficiary Login (mock mobile + OTP flow — DEMO ONLY, see AuthContext/demoDb) */}
+        {selectedRole === "Beneficiary" && (
+        <View style={styles.formCard}>
+          <View style={styles.formHeaderRow}>
+            <Text style={styles.formTitle}>{roleTitle(selectedRole)}</Text>
+            <Pressable testID="login-change-role-btn" onPress={resetRole} style={styles.changeRoleBtn}>
+              <Ionicons name="swap-horizontal" size={14} color={t.colors.brandText} />
+              <Text style={styles.changeRoleText}>{tr.common.change}</Text>
+            </Pressable>
+          </View>
+
+          {errorMsg && (
+            <View style={styles.errorContainer} testID="login-error-alert">
+              <Ionicons name="alert-circle" size={16} color={t.colors.error} />
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          )}
+
+          {benStep === "mobile" ? (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{tr.login.mobileNumberLabel}</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="call-outline" size={18} color={t.colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    testID="beneficiary-mobile-input"
+                    style={styles.textInput}
+                    value={benMobile}
+                    onChangeText={(v) => setBenMobile(v.replace(/\D/g, "").slice(0, 10))}
+                    placeholder={tr.login.mobileNumberPlaceholder}
+                    placeholderTextColor={t.colors.textMuted}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                testID="beneficiary-send-otp-button"
+                onPress={handleSendOtp}
+                style={({ pressed }) => [styles.submitBtn, pressed && styles.pressed]}
+              >
+                <Text style={styles.submitBtnText}>{tr.login.sendOtp}</Text>
+                <Ionicons name="arrow-forward" size={18} color={t.colors.onBrand} />
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.otpSentText}>
+                {tr.login.otpSentPrefix} {benMobile}
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>{tr.login.otpLabel}</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="keypad-outline" size={18} color={t.colors.textSecondary} style={styles.inputIcon} />
+                  <TextInput
+                    testID="beneficiary-otp-input"
+                    style={styles.textInput}
+                    value={benOtp}
+                    onChangeText={(v) => setBenOtp(v.replace(/\D/g, "").slice(0, 6))}
+                    placeholder={tr.login.otpPlaceholder}
+                    placeholderTextColor={t.colors.textMuted}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.otpDemoNoteRow}>
+                <Ionicons name="flask-outline" size={13} color={t.colors.infoText} />
+                <Text style={styles.otpDemoNoteText}>{tr.login.otpDemoNote}</Text>
+              </View>
+
+              <Pressable
+                testID="beneficiary-change-mobile-btn"
+                onPress={() => { setBenStep("mobile"); setBenOtp(""); setErrorMsg(null); }}
+                style={styles.changeMobileRow}
+              >
+                <Text style={styles.forgotText}>{tr.login.changeMobile}</Text>
+              </Pressable>
+
+              <Pressable
+                testID="beneficiary-verify-otp-button"
+                onPress={handleBeneficiaryLogin}
+                disabled={submitting || isLoading}
+                style={({ pressed }) => [
+                  styles.submitBtn,
+                  pressed && styles.pressed,
+                  (submitting || isLoading) && styles.btnDisabled,
+                ]}
+              >
+                {submitting ? (
+                  <ActivityIndicator color={t.colors.onBrand} size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.submitBtnText}>{tr.login.verifyAndSignIn}</Text>
+                    <Ionicons name="arrow-forward" size={18} color={t.colors.onBrand} />
+                  </>
+                )}
+              </Pressable>
+            </>
+          )}
         </View>
         )}
 
@@ -388,35 +551,37 @@ const makeStyles = (t: Theme) =>
       color: t.colors.textPrimary,
       marginBottom: 10,
     },
-    credGrid: {
-      gap: 8,
+    roleGrid: {
+      gap: 12,
     },
-    credCard: {
+    roleGridRow: {
       flexDirection: "row",
+      gap: 12,
+    },
+    roleTile: {
+      flex: 1,
       alignItems: "center",
+      justifyContent: "center",
       gap: 12,
       backgroundColor: t.colors.surfaceSecondary,
-      borderRadius: t.radius.md,
-      padding: 12,
+      borderRadius: t.radius.lg,
+      paddingVertical: 22,
+      paddingHorizontal: 10,
       borderWidth: 1,
       borderColor: t.colors.border,
     },
-    credIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+    roleTileIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
       alignItems: "center",
       justifyContent: "center",
     },
-    credRole: {
+    roleTileLabel: {
       fontSize: 13,
       fontWeight: "800",
       color: t.colors.textPrimary,
-    },
-    credText: {
-      fontSize: 12,
-      color: t.colors.textSecondary,
-      marginTop: 1,
+      textAlign: "center",
     },
     pressed: {
       opacity: 0.85,
@@ -524,6 +689,30 @@ const makeStyles = (t: Theme) =>
       fontSize: 12,
       fontWeight: "600",
       color: t.colors.brandText,
+    },
+    otpSentText: {
+      fontSize: 13,
+      color: t.colors.textSecondary,
+      marginBottom: 14,
+      fontWeight: "600",
+    },
+    otpDemoNoteRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: t.colors.infoLight,
+      borderRadius: t.radius.sm,
+      padding: 10,
+      marginBottom: 14,
+    },
+    otpDemoNoteText: {
+      fontSize: 11,
+      color: t.colors.infoText,
+      flex: 1,
+    },
+    changeMobileRow: {
+      alignSelf: "flex-end",
+      marginBottom: 20,
     },
     submitBtn: {
       backgroundColor: t.colors.brand,

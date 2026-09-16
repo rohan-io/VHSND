@@ -61,30 +61,61 @@ export const DEMO_USERS: any[] = [
   },
   {
     id: "USR-HW-001", username: "worker01", name: "Smruti Malla (ANM)", role: "Health Worker",
+    worker_type: "ANM",
     mobile: "9812345671", phc_center: "CHC Jajpur Sadar",
     sector: "Sector A - Jajpur Sadar", assigned_villages: ["Mangarajpur", "Badatrilochanpur", "Balarampur"],
   },
   {
     id: "USR-HW-002", username: "worker02", name: "Mamata Barik (ASHA)", role: "Health Worker",
+    worker_type: "ASHA",
     mobile: "9812345672", phc_center: "CHC Sukinda",
     sector: "Sector B - Sukinda", assigned_villages: ["Gandhapal", "Baradiha", "Kantira", "Nuadihi", "Singadia"],
   },
   {
     id: "USR-HW-003", username: "worker03", name: "Sujata Parida (ANM)", role: "Health Worker",
+    worker_type: "ANM",
     mobile: "9812345673", phc_center: "CHC Sukinda",
     sector: "Sector C - Sukinda East", assigned_villages: [],
   },
   {
     id: "USR-HW-004", username: "worker04", name: "Kabita Sahoo (ASHA)", role: "Health Worker",
+    worker_type: "ASHA",
     mobile: "9812345674", phc_center: "CHC Jajpur Sadar",
     sector: "Sector D - Jajpur Sadar West", assigned_villages: [],
   },
   {
     id: "USR-HW-005", username: "worker05", name: "Namita Sethi (ANM)", role: "Health Worker",
+    worker_type: "ANM",
     mobile: "9812345675", phc_center: "CHC Sukinda",
     sector: "Sector E - Sukinda North", assigned_villages: [],
   },
 ];
+
+/**
+ * ANM -> ASHA supervisory grouping (see app/(tabs)/index.tsx's supervisory
+ * section and PRD.md for the investigation this backs).
+ *
+ * Checked first: shared `assigned_villages` between any ANM and any ASHA in
+ * this seed data — it produces ZERO overlapping pairs (the two workers with
+ * real caseloads, worker01 ANM and worker02 ASHA, cover two disjoint village
+ * clusters; the other three workers carry empty assigned_villages arrays).
+ * That's the "no one overlaps with anyone" failure case, so village overlap
+ * is not used here.
+ *
+ * Grouping by shared `phc_center` instead (an ANM supervises the ASHAs posted
+ * to her own facility — the real NHM reporting line) produces a sensible,
+ * non-degenerate split: CHC Jajpur Sadar (worker01 ANM + worker04 ASHA) and
+ * CHC Sukinda (worker03 + worker05 ANM, worker02 ASHA). Where a PHC has more
+ * than one ANM, the first-listed ANM at that facility is the sole supervisor
+ * of its ASHAs, so no ASHA is double-counted under two dashboards at once.
+ */
+function supervisedAshasFor(anmId: string) {
+  const anm = DEMO_USERS.find((u) => u.id === anmId && u.worker_type === "ANM");
+  if (!anm) return [];
+  const firstAnmAtPhc = DEMO_USERS.find((u) => u.worker_type === "ANM" && u.phc_center === anm.phc_center);
+  if (firstAnmAtPhc?.id !== anm.id) return [];
+  return DEMO_USERS.filter((u) => u.worker_type === "ASHA" && u.phc_center === anm.phc_center);
+}
 
 // ---------------------------------------------------------------------------
 // seed name tables (lifted verbatim from backend/server.py)
@@ -142,6 +173,26 @@ const PREG_NAMES: PregName[] = [
   ["Truptimayee Sethi", "Satish Sethi", 24, "Mangarajpur", "A+"],
   ["Hemalata Parida", "Rakesh Parida", 29, "Badatrilochanpur", "O+"],
 ];
+
+/**
+ * DEMO-ONLY Beneficiary account: a single fixed login, always resolving to the
+ * same seeded pregnancy record (PREG_NAMES index 31 — "Durga Hembram", a
+ * realistic non-critical third-trimester case). A real beneficiary login needs
+ * a server that can look up and isolate ONE mother's records by her verified
+ * mobile number; a bundled on-device dataset holds every mother's records, so
+ * there is no way to scope it to "just her" without that backend. See
+ * demoLogin()'s "beneficiary-demo" branch and the file header.
+ */
+const BENEFICIARY_SEED_INDEX = 31;
+export const DEMO_BENEFICIARY_USER = {
+  id: "USR-BEN-001",
+  username: "9810010031",
+  name: PREG_NAMES[BENEFICIARY_SEED_INDEX][0],
+  role: "Beneficiary" as const,
+  mobile: `98100${10000 + BENEFICIARY_SEED_INDEX}`,
+  beneficiary_pregnancy_id: `PREG-2026-${1000 + BENEFICIARY_SEED_INDEX}`,
+};
+DEMO_USERS.push(DEMO_BENEFICIARY_USER);
 
 type ChildName = [string, string, string, number, number]; // name, gender, mother name, days old, birth wt
 const CHILD_NAMES: ChildName[] = [
@@ -630,6 +681,14 @@ async function raiseCriticalAlerts(p: any) {
 // ---------------------------------------------------------------------------
 export async function demoLogin(username: string, password: string) {
   const u = (username || "").toLowerCase().trim();
+  // Mock beneficiary OTP flow: the login screen verifies (any) 6-digit code
+  // itself and always sends this sentinel — never the mobile number the
+  // mother typed. See DEMO_BENEFICIARY_USER's doc comment for why this can't
+  // key off her real number in an on-device-only demo.
+  if (u === "beneficiary-demo") {
+    await getDb();
+    return { access_token: "demo-beneficiary-token", user: DEMO_BENEFICIARY_USER };
+  }
   const valid =
     (u === "admin" && password === "Admin@123") ||
     (/^worker0[1-5]$/.test(u) && password === "Worker@123");
@@ -744,8 +803,9 @@ export async function demoRequest<T>(
   if (pMatch && method === "GET") {
     const p = await one<any>("pregnancies", pMatch[1]);
     if (!p) throw new Error("Pregnancy not found");
+    const worker = DEMO_USERS.find((u) => u.id === p.assigned_worker_id);
     return {
-      pregnancy: p,
+      pregnancy: { ...p, assigned_worker_mobile: worker?.mobile },
       visits: (await all<any>("anc_visits")).filter((v) => v.pregnancy_id === p.id),
       immunizations: (await all<any>("maternal_immunizations")).filter((i) => i.pregnancy_id === p.id),
       children: (await all<any>("children")).filter(
@@ -907,6 +967,33 @@ export async function demoRequest<T>(
     const i = await one<any>("child_immunizations", cirMatch[2]);
     if (!i) throw new Error("Immunization not found");
     return put("child_immunizations", i.id, { ...i, ...(options.body || {}), status: "Upcoming" }) as Promise<T>;
+  }
+
+  // ---- health workers (ANM supervisory view over her ASHAs) ----
+  const teamMatch = clean.match(/^\/health-workers\/([^/]+)\/supervised-team$/);
+  if (teamMatch && method === "GET") {
+    const anm = DEMO_USERS.find((u) => u.id === teamMatch[1]);
+    if (!anm) throw new Error("Worker not found");
+    const myAshas = supervisedAshasFor(anm.id);
+
+    const ps = await all<any>("pregnancies");
+    const vs = await all<any>("anc_visits");
+    const cs = await all<any>("children");
+    const ashaIds = new Set(myAshas.map((w) => w.id));
+    const escalations = (await all<any>("alerts")).filter(
+      (a) => a.status === "ACTIVE" && a.alert_type === "CRITICAL_PREGNANCY_ESCALATION" && ashaIds.has(a.assigned_worker_id)
+    );
+
+    return {
+      supervisor: { id: anm.id, name: anm.name, phc_center: anm.phc_center },
+      ashas: myAshas.map((w) => ({
+        worker_id: w.id, name: w.name, mobile: w.mobile, sector: w.sector, assigned_villages: w.assigned_villages,
+        registered_pregnancies: ps.filter((p) => p.assigned_worker_id === w.id).length,
+        anc_visits_conducted: vs.filter((v) => v.health_worker_id === w.id).length,
+        children_covered: cs.filter((c) => c.health_worker_id === w.id).length,
+      })),
+      critical_escalations: escalations,
+    } as T;
   }
 
   // ---- alerts ----

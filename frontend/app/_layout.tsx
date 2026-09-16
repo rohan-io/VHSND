@@ -48,6 +48,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="(admin)" />
+                  <Stack.Screen name="(beneficiary)" />
                   <Stack.Screen name="pregnancy/[id]" />
                   <Stack.Screen name="pregnancy/register" />
                   <Stack.Screen name="anc/record" />

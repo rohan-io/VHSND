@@ -1,4 +1,4 @@
-export type UserRole = "Administrator" | "Health Worker";
+export type UserRole = "Administrator" | "Health Worker" | "Beneficiary";
 
 export interface UserProfile {
   id: string;
@@ -9,6 +9,14 @@ export interface UserProfile {
   phc_center?: string;
   sector?: string;
   assigned_villages?: string[];
+  // Set only for role "Health Worker" — distinguishes the clinical ANM from
+  // the community-outreach ASHA (both share role "Health Worker"; this is the
+  // finer-grained field the ANM supervisory view keys off).
+  worker_type?: "ANM" | "ASHA";
+  // Set only for role "Beneficiary" — the PregnancyRecord.id this account's
+  // home screen is scoped to. DEMO-ONLY: a real deployment needs server-side
+  // per-user data isolation, not a client-held record id (see demoDb.ts header).
+  beneficiary_pregnancy_id?: string;
 }
 
 export interface PregnancyRecord {
@@ -88,6 +96,9 @@ export interface PregnancyRecord {
   risk_factors?: string;
   assigned_worker_id?: string;
   assigned_worker_name?: string;
+  // Joined in by demoDb.ts's /pregnancies/:id handler for the Beneficiary
+  // screen's "your health worker" card — not present on list responses.
+  assigned_worker_mobile?: string;
   health_centre?: string;
   status: "active" | "high_risk" | "delivered" | "archived";
   delivery_details?: {
@@ -248,4 +259,23 @@ export interface OfflineSyncItem {
   timestamp: string;
   display_title: string;
   display_subtitle: string;
+}
+
+// An ASHA's stats as seen on her supervising ANM's dashboard (read-only —
+// see app/(tabs)/index.tsx's supervisory section).
+export interface SupervisedAshaSummary {
+  worker_id: string;
+  name: string;
+  mobile?: string;
+  sector?: string;
+  assigned_villages?: string[];
+  registered_pregnancies: number;
+  anc_visits_conducted: number;
+  children_covered: number;
+}
+
+export interface SupervisedTeamResponse {
+  supervisor: { id: string; name: string; phc_center?: string };
+  ashas: SupervisedAshaSummary[];
+  critical_escalations: AlertItem[];
 }

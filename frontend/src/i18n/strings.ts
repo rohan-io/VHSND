@@ -45,6 +45,9 @@ export const STRINGS = {
     dashCaseloadChildren: { en: "children registered", or: "ଶିଶୁ ପଞ୍ଜୀକୃତ" },
     roleHealthWorker: { en: "Health Worker", or: "ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀ" },
     roleAdministrator: { en: "Administrator", or: "ପ୍ରଶାସକ" },
+    roleBeneficiary: { en: "Beneficiary", or: "ହିତାଧିକାରୀ" }, // REVIEW
+    roleAnm: { en: "ANM", or: "ANM" },
+    roleAsha: { en: "ASHA", or: "ASHA" },
   },
 
   nav: {
@@ -97,10 +100,32 @@ export const STRINGS = {
       or: "ANM, ASHA ଏବଂ ତତ୍ତ୍ୱାବଧାନ ମେଡିକାଲ ଅଫିସରଙ୍କ ପାଇଁ ସରକାରୀ କ୍ଷେତ୍ର ପୋର୍ଟାଲ", // REVIEW
     },
     selectRole: { en: "Select your role to continue", or: "ଆଗକୁ ବଢ଼ିବା ପାଇଁ ଆପଣଙ୍କ ଭୂମିକା ବାଛନ୍ତୁ" },
-    healthWorkerLogin: { en: "Health Worker Login", or: "ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀ ଲଗଇନ" },
-    healthWorkerDesc: { en: "ANM / ASHA field worker access", or: "ANM / ASHA କ୍ଷେତ୍ର କର୍ମୀ ପ୍ରବେଶ" },
     adminLogin: { en: "Administrator Login", or: "ପ୍ରଶାସକ ଲଗଇନ" },
     adminDesc: { en: "District / block oversight access", or: "ଜିଲ୍ଲା / ବ୍ଲକ ତଦାରଖ ପ୍ରବେଶ" },
+    anmLogin: { en: "ANM Login", or: "ANM ଲଗଇନ" },
+    anmDesc: { en: "Clinical field worker access", or: "କ୍ଲିନିକାଲ କ୍ଷେତ୍ର କର୍ମୀ ପ୍ରବେଶ" }, // REVIEW
+    ashaLogin: { en: "ASHA Login", or: "ASHA ଲଗଇନ" },
+    ashaDesc: { en: "Community outreach worker access", or: "ସାମୁଦାୟିକ ଆଉଟ୍‌ରିଚ୍ କର୍ମୀ ପ୍ରବେଶ" }, // REVIEW
+    beneficiaryLogin: { en: "Beneficiary Login", or: "ହିତାଧିକାରୀ ଲଗଇନ" }, // REVIEW
+    beneficiaryDesc: { en: "Mother's mobile number + OTP access", or: "ମାଆଙ୍କ ମୋବାଇଲ ନମ୍ବର + OTP ପ୍ରବେଶ" }, // REVIEW
+    mobileNumberLabel: { en: "Mobile Number", or: "ମୋବାଇଲ ନମ୍ବର" },
+    mobileNumberPlaceholder: { en: "Enter your 10-digit mobile number", or: "ଆପଣଙ୍କ ୧୦-ଅଙ୍କ ମୋବାଇଲ ନମ୍ବର ଦିଅନ୍ତୁ" }, // REVIEW
+    needMobile: {
+      en: "Please enter a valid 10-digit mobile number",
+      or: "ଦୟାକରି ଏକ ବୈଧ ୧୦-ଅଙ୍କ ମୋବାଇଲ ନମ୍ବର ଦିଅନ୍ତୁ", // REVIEW
+    },
+    sendOtp: { en: "Send OTP", or: "OTP ପଠାନ୍ତୁ" }, // REVIEW
+    otpSentPrefix: { en: "A 6-digit OTP was sent to", or: "ଏକ ୬-ଅଙ୍କ OTP ପଠାଯାଇଛି" }, // REVIEW
+    otpLabel: { en: "Enter OTP", or: "OTP ଦିଅନ୍ତୁ" }, // REVIEW
+    otpPlaceholder: { en: "6-digit code", or: "୬-ଅଙ୍କ କୋଡ୍" }, // REVIEW
+    otpDemoNote: {
+      en: "Demo mode: any 6-digit code works.",
+      or: "ଡେମୋ ମୋଡ୍: ଯେକୌଣସି ୬-ଅଙ୍କ କୋଡ୍ କାମ କରିବ।", // REVIEW
+    },
+    anySixDigitOtp: { en: "Any 6-digit OTP", or: "ଯେକୌଣସି ୬-ଅଙ୍କ OTP" }, // REVIEW
+    needOtp: { en: "Please enter the 6-digit OTP", or: "ଦୟାକରି ୬-ଅଙ୍କ OTP ଦିଅନ୍ତୁ" }, // REVIEW
+    verifyAndSignIn: { en: "Verify & Sign In", or: "ଯାଞ୍ଚ କରି ସାଇନ ଇନ କରନ୍ତୁ" }, // REVIEW
+    changeMobile: { en: "Change number", or: "ନମ୍ବର ବଦଳାନ୍ତୁ" }, // REVIEW
     roleLoginSuffix: { en: "Login", or: "ଲଗଇନ" },
     usernameLabel: { en: "Username / Mobile Number", or: "ଉପଯୋଗକର୍ତ୍ତା ନାମ / ମୋବାଇଲ ନମ୍ବର" },
     usernamePlaceholder: { en: "Enter your username", or: "ଆପଣଙ୍କ ଉପଯୋଗକର୍ତ୍ତା ନାମ ଦିଅନ୍ତୁ" },
@@ -521,6 +546,75 @@ export const STRINGS = {
       en: "Tick any risk factor identified at this visit. Any one — here or already on record — keeps this pregnancy Critical and raises an escalation.",
       or: "ଏହି ପରିଦର୍ଶନରେ ଚିହ୍ନଟ ହୋଇଥିବା ବିପଦ କାରକ ଟିକ୍ କରନ୍ତୁ। ଗୋଟିଏ ବି — ଏଠାରେ କିମ୍ବା ପୂର୍ବରୁ ରେକର୍ଡରେ — ଏହି ଗର୍ଭାବସ୍ଥାକୁ ଗୁରୁତର ରଖି ଏସକାଲେସନ ଉଠାଏ।", // REVIEW
     },
+  },
+
+  // ANM's read-only view of the ASHAs she supervises — a section on the shared
+  // Health Worker dashboard (app/(tabs)/index.tsx), gated on worker_type ===
+  // "ANM" so ASHA logins never see it. See demoDb.ts supervisedAshasFor() for
+  // the grouping logic and PRD.md for why village-overlap wasn't used.
+  supervisedTeam: {
+    title: { en: "Your ASHA Team", or: "ଆପଣଙ୍କ ASHA ଦଳ" }, // REVIEW
+    subtitle: {
+      en: "Read-only — you see their work, not a way to act on their behalf.",
+      or: "କେବଳ ଦେଖିବା ପାଇଁ — ଆପଣ ସେମାନଙ୍କ କାମ ଦେଖନ୍ତି, ସେମାନଙ୍କ ପକ୍ଷରୁ କାର୍ଯ୍ୟ କରନ୍ତି ନାହିଁ।", // REVIEW
+    },
+    loadFailed: { en: "Could not load your team.", or: "ଆପଣଙ୍କ ଦଳ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ।" }, // REVIEW
+    empty: { en: "No ASHAs are currently assigned to you.", or: "ବର୍ତ୍ତମାନ ଆପଣଙ୍କୁ କୌଣସି ASHA ନ୍ୟସ୍ତ ହୋଇନାହାଁନ୍ତି।" }, // REVIEW
+    escalationsTitle: { en: "Escalations from your ASHAs", or: "ଆପଣଙ୍କ ASHA ମାନଙ୍କଠାରୁ ଏସକାଲେସନ" }, // REVIEW
+    escalationsEmpty: { en: "No active escalations from your ASHAs.", or: "ଆପଣଙ୍କ ASHA ମାନଙ୍କଠାରୁ କୌଣସି ସକ୍ରିୟ ଏସକାଲେସନ ନାହିଁ।" }, // REVIEW
+  },
+
+  // Beneficiary (mother) home screen — DEMO/MOCK role, see app/(beneficiary)/index.tsx.
+  // Highest-priority screen for Odia: the audience is the mother herself, not a
+  // trained field worker who may already read some English on forms.
+  beneficiary: {
+    demoBanner: {
+      en: "Demo account for illustration only — not a real beneficiary login.",
+      or: "କେବଳ ଉଦାହରଣ ପାଇଁ ଡେମୋ ଆକାଉଣ୍ଟ — ଏହା ଏକ ପ୍ରକୃତ ହିତାଧିକାରୀ ଲଗଇନ ନୁହେଁ।", // REVIEW
+    },
+    greeting: { en: "Welcome", or: "ସ୍ୱାଗତ" },
+    signOut: { en: "Sign Out", or: "ସାଇନ ଆଉଟ" },
+    loading: { en: "Loading your records…", or: "ଆପଣଙ୍କ ରେକର୍ଡ ଲୋଡ୍ ହେଉଛି…" }, // REVIEW
+    loadFailed: { en: "Could not load your records.", or: "ଆପଣଙ୍କ ରେକର୍ଡ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ।" }, // REVIEW
+
+    sectionVhsnd: { en: "VHSND Session Reminders", or: "VHSND ଅଧିବେଶନ ସ୍ମାରକ" }, // REVIEW
+    vhsndUpcomingTag: { en: "UPCOMING", or: "ଆସନ୍ତା" },
+    vhsndPastTag: { en: "ATTENDED", or: "ଉପସ୍ଥିତ ହୋଇଥିଲେ" }, // REVIEW
+    vhsndMessage: {
+      en: "Village Health, Sanitation & Nutrition Day at {village}",
+      or: "{village} ରେ ଗ୍ରାମ ସ୍ୱାସ୍ଥ୍ୟ, ସ୍ୱଚ୍ଛତା ଓ ପୋଷଣ ଦିବସ", // REVIEW
+    },
+
+    sectionCheckups: { en: "Your Checkups & Advice", or: "ଆପଣଙ୍କ ଯାଞ୍ଚ ଓ ପରାମର୍ଶ" }, // REVIEW
+    visitLabel: { en: "Visit", or: "ପରିଦର୍ଶନ" },
+    adviceLabel: { en: "Advice:", or: "ପରାମର୍ଶ:" }, // REVIEW
+    noVisitsYet: { en: "No checkups recorded yet.", or: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଯାଞ୍ଚ ରେକର୍ଡ ହୋଇନାହିଁ।" },
+
+    sectionDueList: { en: "What's Coming Up", or: "ଆଗାମୀ କ'ଣ ଅଛି" }, // REVIEW
+    nextAncVisit: { en: "Next ANC checkup", or: "ପରବର୍ତ୍ତୀ ANC ଯାଞ୍ଚ" }, // REVIEW
+    expectedDelivery: { en: "Expected delivery date", or: "ଆଶାକରାଯାଉଥିବା ପ୍ରସବ ତାରିଖ" }, // REVIEW
+    nothingDue: { en: "Nothing due right now.", or: "ବର୍ତ୍ତମାନ କିଛି ଦେୟ ନାହିଁ।" },
+
+    sectionWorker: { en: "Your Health Worker", or: "ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀ" },
+    callWorker: { en: "Tap to call", or: "କଲ୍ କରିବାକୁ ଟ୍ୟାପ୍ କରନ୍ତୁ" }, // REVIEW
+    noWorkerAssigned: { en: "No worker assigned yet.", or: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି କର୍ମୀ ନ୍ୟସ୍ତ ହୋଇନାହିଁ।" }, // REVIEW
+
+    sectionVhsndFeedback: { en: "Tell Us About Your VHSND Visit", or: "ଆପଣଙ୍କ VHSND ପରିଦର୍ଶନ ବିଷୟରେ କୁହନ୍ତୁ" }, // REVIEW
+    feedbackPrompt: { en: "How was your last VHSND session?", or: "ଆପଣଙ୍କ ଶେଷ VHSND ଅଧିବେଶନ କେମିତି ଥିଲା?" }, // REVIEW
+    feedbackGood: { en: "Good", or: "ଭଲ" },
+    feedbackAverage: { en: "Average", or: "ମଧ୍ୟମ" },
+    feedbackPoor: { en: "Needs Improvement", or: "ଉନ୍ନତି ଆବଶ୍ୟକ" }, // REVIEW
+    submitFeedback: { en: "Submit Feedback", or: "ପ୍ରତିକ୍ରିୟା ଦାଖଲ କରନ୍ତୁ" }, // REVIEW
+    feedbackThanks: { en: "Thank you for your feedback!", or: "ଆପଣଙ୍କ ପ୍ରତିକ୍ରିୟା ପାଇଁ ଧନ୍ୟବାଦ!" }, // REVIEW
+    selectOptionFirst: { en: "Please select an option first.", or: "ଦୟାକରି ପ୍ରଥମେ ଏକ ବିକଳ୍ପ ବାଛନ୍ତୁ।" }, // REVIEW
+
+    sectionPostPregnancyFeedback: { en: "Share Your Experience", or: "ଆପଣଙ୍କ ଅନୁଭୂତି ସେୟାର କରନ୍ତୁ" }, // REVIEW
+    postPregnancyPrompt: {
+      en: "Now that your pregnancy has concluded, how was your overall care?",
+      or: "ଆପଣଙ୍କ ଗର୍ଭାବସ୍ଥା ସମାପ୍ତ ହୋଇଥିବାରୁ, ଆପଣଙ୍କ ସାମଗ୍ରିକ ଯତ୍ନ କେମିତି ଥିଲା?", // REVIEW
+    },
+    submitPostPregnancyFeedback: { en: "Submit", or: "ଦାଖଲ କରନ୍ତୁ" },
+    postPregnancyThanks: { en: "Thank you — congratulations again!", or: "ଧନ୍ୟବାଦ — ପୁଣି ଥରେ ଅଭିନନ୍ଦନ!" }, // REVIEW
   },
 } as const;
 
