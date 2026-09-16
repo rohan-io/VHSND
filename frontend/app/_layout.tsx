@@ -8,6 +8,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { ThemeProvider } from "@/src/context/ThemeContext";
+import { LanguageProvider } from "@/src/context/LanguageContext";
 import { AuthProvider } from "@/src/context/AuthContext";
 import { OfflineSyncProvider } from "@/src/context/OfflineSyncContext";
 import { ToastProvider } from "@/src/components/Toast";
@@ -36,6 +37,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
+      <LanguageProvider>
       <SafeAreaProvider>
         <KeyboardProvider>
           <AuthProvider>
@@ -59,6 +61,7 @@ export default function RootLayout() {
           </AuthProvider>
         </KeyboardProvider>
       </SafeAreaProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

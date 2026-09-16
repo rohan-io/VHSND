@@ -11,42 +11,56 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme, useThemeMode, type ThemeMode } from "@/src/context/ThemeContext";
+import { useTranslation, useLanguage } from "@/src/context/LanguageContext";
+import type { Lang } from "@/src/i18n/strings";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { useAuth } from "@/src/context/AuthContext";
 import { useOfflineSync } from "@/src/context/OfflineSyncContext";
 import { useToast } from "@/src/components/Toast";
 
-const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { mode: "light", label: "Light", icon: "sunny-outline" },
-  { mode: "dark", label: "Dark", icon: "moon-outline" },
-  { mode: "system", label: "System", icon: "phone-portrait-outline" },
-];
+const THEME_ICONS: Record<ThemeMode, keyof typeof Ionicons.glyphMap> = {
+  light: "sunny-outline",
+  dark: "moon-outline",
+  system: "phone-portrait-outline",
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
+  const { lang, setLang } = useLanguage();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { user, logout } = useAuth();
   const { isSimulatedOffline, toggleSimulatedOffline, pendingCount, lastSyncTime } = useOfflineSync();
   const { showToast } = useToast();
 
+  const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { mode: "light", label: tr.profile.themeLight, icon: THEME_ICONS.light },
+    { mode: "dark", label: tr.profile.themeDark, icon: THEME_ICONS.dark },
+    { mode: "system", label: tr.profile.themeSystem, icon: THEME_ICONS.system },
+  ];
+  const LANG_OPTIONS: { code: Lang; label: string }[] = [
+    { code: "en", label: tr.profile.langEnglish },
+    { code: "or", label: tr.profile.langOdia },
+  ];
+
   const handleLogout = async () => {
     await logout();
-    showToast("Signed out successfully.", "info");
+    showToast(tr.profile.signedOutToast, "info");
     router.replace("/(auth)/login");
   };
 
   const rows = [
-    { icon: "sync-circle-outline" as const, label: "Offline Sync Center", sub: `${pendingCount} pending • Last synced ${lastSyncTime || "—"}`, action: () => router.push("/sync") },
-    { icon: "notifications-outline" as const, label: "Notifications", sub: "Campaign & program broadcasts", action: () => router.push("/notifications") },
-    { icon: "shield-checkmark-outline" as const, label: "Assigned Villages", sub: (user?.assigned_villages || []).join(", ") || "—", action: () => {} },
+    { icon: "sync-circle-outline" as const, label: tr.profile.offlineSyncCenter, sub: `${pendingCount} ${tr.profile.pendingLastSynced} ${lastSyncTime || "—"}`, action: () => router.push("/sync") },
+    { icon: "notifications-outline" as const, label: tr.profile.notifications, sub: tr.profile.notificationsSub, action: () => router.push("/notifications") },
+    { icon: "shield-checkmark-outline" as const, label: tr.profile.assignedVillages, sub: (user?.assigned_villages || []).join(", ") || "—", action: () => {} },
   ];
 
   return (
     <View style={styles.root}>
-      <Header title="Profile & Settings" showOfflineToggle={false} />
+      <Header title={tr.profile.title} showOfflineToggle={false} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Profile card */}
         <View style={styles.profileCard} testID="profile-card">
@@ -56,7 +70,13 @@ export default function ProfileScreen() {
           <Text style={styles.profileName}>{user?.name}</Text>
           <View style={styles.roleBadge}>
             <Ionicons name="ribbon" size={12} color={t.colors.brandDark} />
-            <Text style={styles.roleText}>{user?.role}</Text>
+            <Text style={styles.roleText}>
+              {user?.role === "Administrator"
+                ? tr.common.roleAdministrator
+                : user?.role === "Health Worker"
+                ? tr.common.roleHealthWorker
+                : user?.role}
+            </Text>
           </View>
           <View style={styles.profileMetaRow}>
             <View style={styles.profileMetaItem}>
@@ -71,15 +91,15 @@ export default function ProfileScreen() {
         </View>
 
         {/* Simulated Offline Toggle */}
-        <Text style={styles.sectionTitle}>Field Connectivity</Text>
+        <Text style={styles.sectionTitle}>{tr.profile.fieldConnectivity}</Text>
         <View style={styles.toggleCard}>
           <View style={[styles.toggleIcon, { backgroundColor: isSimulatedOffline ? t.colors.errorLight : t.colors.brandLight }]}>
             <Ionicons name={isSimulatedOffline ? "cloud-offline" : "cloud-done"} size={20} color={isSimulatedOffline ? t.colors.error : t.colors.brandText} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.toggleLabel}>Simulated Offline Mode</Text>
+            <Text style={styles.toggleLabel}>{tr.profile.simulatedOffline}</Text>
             <Text style={styles.toggleSub}>
-              {isSimulatedOffline ? "Records saved locally, will sync when back online." : "Live connection to central server."}
+              {isSimulatedOffline ? tr.profile.simulatedOfflineOn : tr.profile.simulatedOfflineOff}
             </Text>
           </View>
           <Switch
@@ -92,7 +112,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Appearance */}
-        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.sectionTitle}>{tr.profile.appearance}</Text>
         <View style={styles.appearanceCard}>
           <View style={styles.segmented} testID="theme-mode-control">
             {THEME_OPTIONS.map((opt) => {
@@ -117,12 +137,42 @@ export default function ProfileScreen() {
             })}
           </View>
           <Text style={styles.appearanceHint}>
-            System follows your device&apos;s light/dark setting.
+            {tr.profile.appearanceHint}
+          </Text>
+        </View>
+
+        {/* Language */}
+        <Text style={styles.sectionTitle}>{tr.profile.language}</Text>
+        <View style={styles.appearanceCard}>
+          <View style={styles.segmented} testID="language-control">
+            {LANG_OPTIONS.map((opt) => {
+              const active = lang === opt.code;
+              return (
+                <Pressable
+                  key={opt.code}
+                  testID={`language-${opt.code}`}
+                  onPress={() => setLang(opt.code)}
+                  style={[styles.segment, active && styles.segmentActive]}
+                >
+                  <Ionicons
+                    name="language-outline"
+                    size={16}
+                    color={active ? t.colors.brandText : t.colors.textSecondary}
+                  />
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.appearanceHint}>
+            {tr.profile.languageHint}
           </Text>
         </View>
 
         {/* Menu rows */}
-        <Text style={styles.sectionTitle}>Tools</Text>
+        <Text style={styles.sectionTitle}>{tr.profile.tools}</Text>
         {rows.map((r, i) => (
           <Pressable key={i} testID={`profile-row-${i}`} onPress={r.action} style={styles.menuRow}>
             <View style={styles.menuIcon}>
@@ -138,7 +188,7 @@ export default function ProfileScreen() {
 
         <Pressable testID="profile-logout-btn" onPress={handleLogout} style={styles.logoutBtn}>
           <Ionicons name="log-out-outline" size={18} color={t.colors.error} />
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>{tr.profile.signOut}</Text>
         </Pressable>
 
         <Text style={styles.footerText}>ମା ଓ ଶିଶୁ ସୁରକ୍ଷା · v2.6.4</Text>

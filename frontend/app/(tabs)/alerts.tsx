@@ -8,11 +8,13 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
+import { priorityLabel } from "@/src/i18n/strings";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { LoadError } from "@/src/components/LoadError";
@@ -21,25 +23,48 @@ import { useArmConfirm } from "@/src/hooks/use-arm-confirm";
 import { priorityColor } from "@/src/utils/priority";
 import { listAlerts, acknowledgeAlert, recalcAlerts } from "@/src/api/mch";
 import { AlertItem } from "@/src/types";
+import { useAuth } from "@/src/context/AuthContext";
+import { isAdmin } from "@/src/utils/roles";
 
-const SEGMENTS = [
-  { key: "all", label: "All Alerts", match: () => true },
-  { key: "highrisk", label: "High Risk", match: (a: AlertItem) => a.alert_type === "HIGH_RISK_PREGNANCY" || a.alert_type === "EDD_APPROACHING" },
-  { key: "anc", label: "Missed ANC", match: (a: AlertItem) => a.alert_type === "MISSED_ANC" },
-  { key: "mat", label: "Maternal Vaccine", match: (a: AlertItem) => a.alert_type.startsWith("MATERNAL_VACCINE") },
-  { key: "child", label: "Child Vaccine", match: (a: AlertItem) => a.alert_type.startsWith("CHILD_VACCINE") },
-];
+const SEG_MATCH: Record<string, (a: AlertItem) => boolean> = {
+  all: () => true,
+  escalations: (a) => a.alert_type === "CRITICAL_PREGNANCY_ESCALATION",
+  highrisk: (a) =>
+    a.alert_type === "CRITICAL_PREGNANCY_ESCALATION" ||
+    a.alert_type === "HIGH_RISK_PREGNANCY" ||
+    a.alert_type === "EDD_APPROACHING",
+  anc: (a) => a.alert_type === "MISSED_ANC",
+  mat: (a) => a.alert_type.startsWith("MATERNAL_VACCINE"),
+  child: (a) => a.alert_type.startsWith("CHILD_VACCINE"),
+};
+
+const VALID_SEGS = new Set(["all", "escalations", "highrisk", "anc", "mat", "child"]);
 
 export default function AlertsScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const PRIORITY_COLOR = useMemo(() => priorityColor(t), [t]);
   const { showToast } = useToast();
+  const { user } = useAuth();
+  // Admin role is monitor/escalate/notify only — Alerts renders read-only:
+  // view details, no Acknowledge. Checked here (render) AND in handleAck
+  // (point of action) so this can't be bypassed.
+  const readOnly = isAdmin(user);
+  const SEGMENTS = [
+    { key: "all", label: tr.alerts.segAll, match: SEG_MATCH.all },
+    { key: "escalations", label: tr.alerts.segEscalations, match: SEG_MATCH.escalations },
+    { key: "highrisk", label: tr.alerts.segHighRisk, match: SEG_MATCH.highrisk },
+    { key: "anc", label: tr.alerts.segMissedAnc, match: SEG_MATCH.anc },
+    { key: "mat", label: tr.alerts.segMaternalVaccine, match: SEG_MATCH.mat },
+    { key: "child", label: tr.alerts.segChildVaccine, match: SEG_MATCH.child },
+  ];
+  const { seg: segParam } = useLocalSearchParams<{ seg?: string }>();
   const [items, setItems] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [seg, setSeg] = useState("all");
+  const [seg, setSeg] = useState(segParam && VALID_SEGS.has(segParam) ? segParam : "all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const { armedId, confirm } = useArmConfirm();
 
@@ -65,13 +90,14 @@ export default function AlertsScreen() {
   );
 
   const handleAck = async (id: string) => {
+    if (readOnly) return; // point-of-action guard — Admin can't acknowledge, button or not
     setBusyId(id);
     try {
       await acknowledgeAlert(id);
       setItems((prev) => prev.filter((a) => a.id !== id));
-      showToast("Alert acknowledged and cleared.", "success");
+      showToast(tr.alerts.ackedToast, "success");
     } catch (e: any) {
-      showToast(e.message || "Failed to acknowledge alert.", "error");
+      showToast(e.message || tr.alerts.ackFailedToast, "error");
     } finally {
       setBusyId(null);
     }
@@ -83,19 +109,31 @@ export default function AlertsScreen() {
   const renderItem = ({ item }: { item: AlertItem }) => {
     const color = PRIORITY_COLOR[item.priority] || t.colors.info;
     const armed = armedId === item.id;
+    const isEscalation = item.alert_type === "CRITICAL_PREGNANCY_ESCALATION";
     return (
-      <View style={styles.card} testID={`alert-card-${item.id}`}>
-        <Ionicons name="alert-circle" size={20} color={color} style={styles.priorityIcon} />
+      <View style={[styles.card, isEscalation && styles.cardEscalation]} testID={`alert-card-${item.id}`}>
+        <Ionicons
+          name="warning"
+          size={20}
+          color={isEscalation ? t.colors.onStatus : color}
+          style={styles.priorityIcon}
+        />
         <View style={{ flex: 1 }}>
           <View style={styles.cardHeader}>
-            <View style={[styles.priorityPill, { backgroundColor: `${color}18` }]}>
-              <Text style={[styles.priorityText, { color }]}>{item.priority}</Text>
-            </View>
-            <Text style={styles.dueDate}>Due {item.due_date}</Text>
+            {isEscalation ? (
+              <View style={styles.escTag}>
+                <Text style={styles.escTagText}>{tr.alerts.escalationTag}</Text>
+              </View>
+            ) : (
+              <View style={[styles.priorityPill, { backgroundColor: `${color}18` }]}>
+                <Text style={[styles.priorityText, { color }]}>{priorityLabel(item.priority, tr)}</Text>
+              </View>
+            )}
+            <Text style={[styles.dueDate, isEscalation && styles.textOnFillMuted]}>{tr.alerts.duePrefix} {item.due_date}</Text>
           </View>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.msg}>{item.message}</Text>
-          <Text style={styles.worker}>Assigned: {item.assigned_worker_name || "—"}</Text>
+          <Text style={[styles.title, isEscalation && styles.textOnFill]}>{item.title}</Text>
+          <Text style={[styles.msg, isEscalation && styles.textOnFillMuted]}>{item.message}</Text>
+          <Text style={[styles.worker, isEscalation && styles.textOnFillMuted]}>{tr.alerts.assignedPrefix} {item.assigned_worker_name || "—"}</Text>
 
           <View style={styles.actions}>
             <Pressable
@@ -108,29 +146,36 @@ export default function AlertsScreen() {
               style={styles.viewBtn}
             >
               <Ionicons name="eye-outline" size={15} color={t.colors.brandDark} />
-              <Text style={styles.viewBtnText}>View Record</Text>
+              <Text style={styles.viewBtnText}>{tr.alerts.viewRecord}</Text>
             </Pressable>
-            <Pressable
-              testID={`alert-ack-${item.id}`}
-              onPress={() => { if (confirm(item.id)) handleAck(item.id); }}
-              disabled={busyId === item.id}
-              style={[styles.ackBtn, armed && styles.ackBtnArmed]}
-            >
-              {busyId === item.id ? (
-                <ActivityIndicator size="small" color={t.colors.onBrand} />
-              ) : (
-                <>
-                  <Ionicons
-                    name={armed ? "checkmark-done" : "checkmark"}
-                    size={15}
-                    color={armed ? t.colors.onWarning : t.colors.onBrand}
-                  />
-                  <Text style={[styles.ackBtnText, armed && { color: t.colors.onWarning }]}>
-                    {armed ? "Tap to confirm" : "Acknowledge"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
+            {readOnly ? (
+              <View testID={`alert-viewonly-${item.id}`} style={styles.viewOnlyPill}>
+                <Ionicons name="eye-outline" size={13} color={t.colors.textMuted} />
+                <Text style={styles.viewOnlyText}>{tr.alerts.viewOnly}</Text>
+              </View>
+            ) : (
+              <Pressable
+                testID={`alert-ack-${item.id}`}
+                onPress={() => { if (confirm(item.id)) handleAck(item.id); }}
+                disabled={busyId === item.id}
+                style={[styles.ackBtn, armed && styles.ackBtnArmed]}
+              >
+                {busyId === item.id ? (
+                  <ActivityIndicator size="small" color={t.colors.onBrand} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={armed ? "checkmark-done" : "checkmark"}
+                      size={15}
+                      color={armed ? t.colors.onWarning : t.colors.onBrand}
+                    />
+                    <Text style={[styles.ackBtnText, armed && { color: t.colors.onWarning }]}>
+                      {armed ? tr.alerts.tapToConfirm : tr.alerts.acknowledge}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -139,7 +184,7 @@ export default function AlertsScreen() {
 
   return (
     <View style={styles.root}>
-      <Header title="Alert Engine" showOfflineToggle />
+      <Header title={tr.alerts.title} showOfflineToggle />
 
       <View style={styles.stickyHeader}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
@@ -158,7 +203,7 @@ export default function AlertsScreen() {
       {loading ? (
         <View style={styles.centerFill}>
           <ActivityIndicator size="large" color={t.colors.brand} />
-          <Text style={styles.loadingText}>Running alert engine batches…</Text>
+          <Text style={styles.loadingText}>{tr.alerts.loading}</Text>
         </View>
       ) : error ? (
         <LoadError onRetry={load} testID="alerts-load-error" />
@@ -172,7 +217,7 @@ export default function AlertsScreen() {
           ListEmptyComponent={
             <View style={styles.centerFill}>
               <Ionicons name="checkmark-done-circle-outline" size={44} color={t.colors.success} />
-              <Text style={styles.emptyText}>All beneficiary records are up to date. No pending alerts.</Text>
+              <Text style={styles.emptyText}>{tr.alerts.allClear}</Text>
             </View>
           }
         />
@@ -195,6 +240,11 @@ const makeStyles = (t: Theme) =>
     emptyText: { fontSize: 13, color: t.colors.textSecondary, textAlign: "center" },
     listContent: { padding: 16, paddingBottom: 32 },
     card: { flexDirection: "row", gap: 12, backgroundColor: t.colors.surfaceSecondary, borderRadius: t.radius.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: t.colors.border },
+    cardEscalation: { backgroundColor: t.colors.error, borderColor: t.colors.error },
+    escTag: { backgroundColor: "rgba(255,255,255,0.25)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+    escTagText: { fontSize: 12, fontWeight: "800", color: t.colors.onStatus, letterSpacing: 0.5 },
+    textOnFill: { color: t.colors.onStatus },
+    textOnFillMuted: { color: t.colors.onStatus, opacity: 0.9 },
     priorityIcon: { marginTop: 1 },
     cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
     priorityPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
@@ -209,4 +259,6 @@ const makeStyles = (t: Theme) =>
     ackBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: t.colors.brand, borderRadius: t.radius.sm, paddingVertical: 12 },
     ackBtnArmed: { backgroundColor: t.colors.warning },
     ackBtnText: { fontSize: 13, fontWeight: "700", color: t.colors.onBrand },
+    viewOnlyPill: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: t.colors.surfaceTertiary, borderRadius: t.radius.sm, paddingVertical: 12 },
+    viewOnlyText: { fontSize: 13, fontWeight: "700", color: t.colors.textMuted },
   });

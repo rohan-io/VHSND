@@ -13,28 +13,35 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { MetricCard } from "@/src/components/MetricCard";
 import { LoadError } from "@/src/components/LoadError";
+import { ChatAssistant } from "@/src/components/ChatAssistant";
 import { useAuth } from "@/src/context/AuthContext";
 import { useOfflineSync } from "@/src/context/OfflineSyncContext";
 import { getDashboard, DashboardResponse } from "@/src/api/mch";
 import { priorityColor } from "@/src/utils/priority";
+import { priorityLabel } from "@/src/i18n/strings";
+
+// Keep the dashboard preview short; the full list lives on the Alerts screen.
+const CRITICAL_PREVIEW = 4;
 
 export default function DashboardScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const PRIORITY_COLOR = useMemo(() => priorityColor(t), [t]);
   const QUICK_ACTIONS = useMemo(
+    // "Register Child" removed while the Children section is hidden from navigation.
     () => [
-      { key: "reg-preg", label: "Register\nPregnancy", icon: "add-circle" as const, route: "/pregnancy/register", color: t.colors.brandText },
-      { key: "reg-child", label: "Register\nChild", icon: "person-add" as const, route: "/child/register", color: t.colors.info },
-      { key: "anc", label: "Record\nANC Visit", icon: "clipboard" as const, route: "/pregnancy", color: t.colors.warning },
-      { key: "sync", label: "Sync\nCenter", icon: "sync-circle" as const, route: "/sync", color: t.colors.success },
+      { key: "reg-preg", label: tr.dashboard.qaRegisterPregnancy, icon: "add-circle" as const, route: "/pregnancy/register", color: t.colors.brandText },
+      { key: "anc", label: tr.dashboard.qaRecordAnc, icon: "clipboard" as const, route: "/pregnancy", color: t.colors.warning },
+      { key: "sync", label: tr.dashboard.qaSyncCenter, icon: "sync-circle" as const, route: "/sync", color: t.colors.success },
     ],
-    [t],
+    [t, tr],
   );
   const { user } = useAuth();
   const { pendingCount, lastSyncTime } = useOfflineSync();
@@ -50,7 +57,7 @@ export default function DashboardScreen() {
       const res = await getDashboard();
       setData(res);
     } catch (e: any) {
-      setError(e.message || "Failed to load dashboard metrics.");
+      setError(e.message || tr.dashboard.loadFailed);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,7 +84,7 @@ export default function DashboardScreen() {
       {loading ? (
         <View style={styles.centerFill} testID="dashboard-loading">
           <ActivityIndicator size="large" color={t.colors.brand} />
-          <Text style={styles.loadingText}>Synchronising live registries…</Text>
+          <Text style={styles.loadingText}>{tr.dashboard.loading}</Text>
         </View>
       ) : error ? (
         <LoadError message={error} onRetry={load} testID="dashboard-error" />
@@ -92,12 +99,12 @@ export default function DashboardScreen() {
           {/* Context strip: where you are, whether your data is current */}
           <View style={styles.greetBanner}>
             <View style={styles.greetText}>
-              <Text style={styles.greetPlace} numberOfLines={2}>{user?.phc_center || "Primary Health Centre"}</Text>
-              <Text style={styles.greetSector} numberOfLines={1}>{user?.sector || "Field area"}</Text>
+              <Text style={styles.greetPlace} numberOfLines={2}>{user?.phc_center || tr.dashboard.fallbackPhc}</Text>
+              <Text style={styles.greetSector} numberOfLines={1}>{user?.sector || tr.dashboard.fallbackArea}</Text>
             </View>
             <View style={styles.syncChip}>
               <Ionicons name="time-outline" size={12} color={t.colors.brandDark} />
-              <Text style={styles.syncChipText}>Synced {lastSyncTime || "—"}</Text>
+              <Text style={styles.syncChipText}>{tr.common.syncedAt} {lastSyncTime || "—"}</Text>
             </View>
           </View>
 
@@ -109,23 +116,73 @@ export default function DashboardScreen() {
             >
               <Ionicons name="cloud-upload-outline" size={16} color={t.colors.warningText} />
               <Text style={styles.pendingText}>
-                {pendingCount} record{pendingCount > 1 ? "s" : ""} waiting for synchronization
+                {pendingCount} {tr.dashboard.recordsWaiting}
               </Text>
               <Ionicons name="chevron-forward" size={16} color={t.colors.warningText} />
             </Pressable>
           )}
 
+          {/* HIGHEST PRIORITY: critical pregnancies needing follow-up. Sits above
+              everything else — this is the single most important thing on screen. */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitleFlush, { color: t.colors.errorText }]}>{tr.dashboard.criticalFollowUp}</Text>
+            {(data?.critical_pregnancies || []).length > 0 && (
+              <View style={styles.criticalCountPill}>
+                <Text style={styles.criticalCountText}>{(data?.critical_pregnancies || []).length}</Text>
+              </View>
+            )}
+          </View>
+          {(data?.critical_pregnancies || []).length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="checkmark-circle-outline" size={22} color={t.colors.success} />
+              <Text style={styles.emptyText}>{tr.dashboard.noCritical}</Text>
+            </View>
+          ) : (
+            <>
+              {(data?.critical_pregnancies || []).slice(0, CRITICAL_PREVIEW).map((cp) => (
+                <Pressable
+                  key={cp.id}
+                  testID={`dashboard-critical-${cp.id}`}
+                  onPress={() => router.push(`/pregnancy/${cp.id}` as any)}
+                  style={styles.criticalRow}
+                >
+                  <Ionicons name="warning" size={20} color={t.colors.onStatus} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.criticalName} numberOfLines={1}>{cp.full_name}</Text>
+                    <Text style={styles.criticalSub} numberOfLines={1}>{cp.village} • {cp.gestational_age_label}</Text>
+                    {(cp.high_risk_reasons || []).length > 0 && (
+                      <Text style={styles.criticalReasons} numberOfLines={2}>
+                        {(cp.high_risk_reasons || []).slice(0, 2).join(" · ")}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={t.colors.onStatus} />
+                </Pressable>
+              ))}
+              <Pressable
+                testID="dashboard-critical-view-all"
+                onPress={() => router.push("/alerts?seg=escalations" as any)}
+                style={styles.criticalViewAll}
+              >
+                <Text style={styles.criticalViewAllText}>
+                  {tr.common.viewAll} ({(data?.critical_pregnancies || []).length})
+                </Text>
+                <Ionicons name="arrow-forward" size={15} color={t.colors.errorText} />
+              </Pressable>
+            </>
+          )}
+
           {/* LEAD: today's priority alerts */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitleFlush}>Priority alerts</Text>
+            <Text style={styles.sectionTitleFlush}>{tr.dashboard.priorityAlerts}</Text>
             <Pressable testID="dashboard-view-all-alerts" onPress={() => router.push("/alerts")} hitSlop={8}>
-              <Text style={styles.viewAll}>View all</Text>
+              <Text style={styles.viewAll}>{tr.common.viewAll}</Text>
             </Pressable>
           </View>
           {(data?.todays_alerts || []).length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="checkmark-circle-outline" size={22} color={t.colors.success} />
-              <Text style={styles.emptyText}>Everyone in your area is up to date.</Text>
+              <Text style={styles.emptyText}>{tr.dashboard.allUpToDate}</Text>
             </View>
           ) : (
             (data?.todays_alerts || []).slice(0, 5).map((al) => (
@@ -145,40 +202,31 @@ export default function DashboardScreen() {
                   <Text style={styles.alertMsg} numberOfLines={2}>{al.message}</Text>
                 </View>
                 <View style={[styles.priorityPill, { backgroundColor: `${PRIORITY_COLOR[al.priority]}18` }]}>
-                  <Text style={[styles.priorityText, { color: PRIORITY_COLOR[al.priority] }]}>{al.priority}</Text>
+                  <Text style={[styles.priorityText, { color: PRIORITY_COLOR[al.priority] }]}>{priorityLabel(al.priority, tr)}</Text>
                 </View>
               </Pressable>
             ))
           )}
 
-          {/* Needs attention: the visit worklist, one grouping instead of three */}
-          <Text style={styles.sectionTitle}>Needs attention</Text>
+          {/* Needs attention: the visit worklist, one grouping instead of three.
+              (High-risk count card removed — the critical section above supersedes it.) */}
+          <Text style={styles.sectionTitle}>{tr.dashboard.needsAttention}</Text>
           <View style={styles.grid}>
-            <MetricCard
-              testID="metric-high-risk"
-              title="High-risk pregnancies"
-              value={s.high_risk_pregnancies ?? 0}
-              icon="alert-circle"
-              color={t.colors.error}
-              bgColor={t.colors.errorLight}
-              onPress={() => router.push("/pregnancy")}
-            />
+            <MetricCard testID="metric-anc-due" title={tr.dashboard.ancDue} value={s.anc_due ?? 0} icon="calendar" color={t.colors.warning} onPress={() => router.push("/pregnancy")} />
+            <MetricCard testID="metric-anc-overdue" title={tr.dashboard.ancOverdue} value={s.anc_overdue ?? 0} icon="calendar-clear" color={t.colors.error} onPress={() => router.push("/pregnancy")} />
           </View>
           <View style={styles.grid}>
-            <MetricCard testID="metric-anc-due" title="ANC due" value={s.anc_due ?? 0} icon="calendar" color={t.colors.warning} onPress={() => router.push("/pregnancy")} />
-            <MetricCard testID="metric-anc-overdue" title="ANC overdue" value={s.anc_overdue ?? 0} icon="calendar-clear" color={t.colors.error} onPress={() => router.push("/pregnancy")} />
+            <MetricCard testID="metric-mat-vaccine-due" title={tr.dashboard.matVaccineDue} value={s.maternal_vaccine_due ?? 0} icon="medkit" color={t.colors.warning} />
+            <MetricCard testID="metric-mat-vaccine-overdue" title={tr.dashboard.matVaccineOverdue} value={s.maternal_vaccine_overdue ?? 0} icon="medkit" color={t.colors.error} />
           </View>
           <View style={styles.grid}>
-            <MetricCard testID="metric-mat-vaccine-due" title="Maternal vaccine due" value={s.maternal_vaccine_due ?? 0} icon="medkit" color={t.colors.warning} />
-            <MetricCard testID="metric-mat-vaccine-overdue" title="Maternal vaccine overdue" value={s.maternal_vaccine_overdue ?? 0} icon="medkit" color={t.colors.error} />
-          </View>
-          <View style={styles.grid}>
-            <MetricCard testID="metric-child-vaccine-due" title="Child vaccines due" value={s.child_vaccines_due ?? 0} icon="bandage" color={t.colors.warning} onPress={() => router.push("/children")} />
-            <MetricCard testID="metric-child-vaccine-overdue" title="Child vaccines overdue" value={s.child_vaccines_overdue ?? 0} icon="bandage" color={t.colors.error} onPress={() => router.push("/children")} />
+            {/* PMSMA (9th-of-the-month ANC camp) — replaces the old Child Vaccines due/overdue pair. */}
+            <MetricCard testID="metric-pmsma" title={tr.dashboard.pmsma} value={s.pmsma_ontrack ?? 0} icon="calendar" color={t.colors.success} onPress={() => router.push("/pmsma" as any)} />
+            <MetricCard testID="metric-epmsma" title={tr.dashboard.epmsma} value={s.pmsma_missed ?? 0} icon="calendar" color={t.colors.error} onPress={() => router.push("/pmsma" as any)} />
           </View>
 
           {/* Quick Actions */}
-          <Text style={styles.sectionTitle}>Quick actions</Text>
+          <Text style={styles.sectionTitle}>{tr.dashboard.quickActions}</Text>
           <View style={styles.actionRow}>
             {QUICK_ACTIONS.map((a) => (
               <Pressable
@@ -196,7 +244,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* Recent Registrations */}
-          <Text style={styles.sectionTitle}>Recent registrations</Text>
+          <Text style={styles.sectionTitle}>{tr.dashboard.recentRegistrations}</Text>
           {(data?.recent_pregnancies || []).slice(0, 4).map((p) => (
             <Pressable
               key={p.id}
@@ -226,10 +274,10 @@ export default function DashboardScreen() {
             style={styles.caseloadHeader}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitleFlush}>Caseload overview</Text>
+              <Text style={styles.sectionTitleFlush}>{tr.dashboard.caseloadOverview}</Text>
               {!showCaseload && (
                 <Text style={styles.caseloadSummary}>
-                  {s.total_pregnancies ?? 0} pregnancies • {s.total_children ?? 0} children registered
+                  {s.total_pregnancies ?? 0} {tr.common.dashCaseloadPregnancies} • {s.total_children ?? 0} {tr.common.dashCaseloadChildren}
                 </Text>
               )}
             </View>
@@ -242,16 +290,13 @@ export default function DashboardScreen() {
           {showCaseload && (
             <View style={styles.caseloadBody}>
               <View style={styles.grid}>
-                <MetricCard testID="metric-total-pregnancies" title="Total pregnancies" value={s.total_pregnancies ?? 0} icon="woman" color={t.colors.brandText} onPress={() => router.push("/pregnancy")} />
-                <MetricCard testID="metric-children" title="Registered children" value={s.total_children ?? 0} icon="body" color={t.colors.brandText} onPress={() => router.push("/children")} />
+                <MetricCard testID="metric-total-pregnancies" title={tr.dashboard.totalPregnancies} value={s.total_pregnancies ?? 0} icon="woman" color={t.colors.brandText} onPress={() => router.push("/pregnancy")} />
+                <MetricCard testID="metric-children" title={tr.dashboard.registeredChildren} value={s.total_children ?? 0} icon="body" color={t.colors.brandText} onPress={() => router.push("/children")} />
               </View>
               <View style={styles.grid}>
-                <MetricCard testID="metric-trimester-1" title="1st trimester" value={s.trimester_1 ?? 0} icon="ellipse-outline" color={t.colors.brandDark} />
-                <MetricCard testID="metric-trimester-2" title="2nd trimester" value={s.trimester_2 ?? 0} icon="contrast" color={t.colors.brandText} />
-                <MetricCard testID="metric-trimester-3" title="3rd trimester" value={s.trimester_3 ?? 0} icon="ellipse" color={t.colors.brandSecondaryText} />
-              </View>
-              <View style={styles.grid}>
-                <MetricCard testID="metric-child-vaccine-done" title="Child vaccines given" value={s.child_vaccines_completed ?? 0} icon="checkmark-done-circle" color={t.colors.success} />
+                <MetricCard testID="metric-trimester-1" title={tr.dashboard.trimester1} value={s.trimester_1 ?? 0} icon="ellipse-outline" color={t.colors.brandDark} />
+                <MetricCard testID="metric-trimester-2" title={tr.dashboard.trimester2} value={s.trimester_2 ?? 0} icon="contrast" color={t.colors.brandText} />
+                <MetricCard testID="metric-trimester-3" title={tr.dashboard.trimester3} value={s.trimester_3 ?? 0} icon="ellipse" color={t.colors.brandSecondaryText} />
               </View>
             </View>
           )}
@@ -259,11 +304,13 @@ export default function DashboardScreen() {
           <View style={styles.disclaimerBox}>
             <Ionicons name="shield-checkmark-outline" size={14} color={t.colors.textMuted} />
             <Text style={styles.disclaimerText}>
-              Immunisation dates follow a sample schedule. Confirm against the approved national schedule before clinical use.
+              {tr.dashboard.immDisclaimer}
             </Text>
           </View>
         </ScrollView>
       )}
+
+      <ChatAssistant />
     </View>
   );
 }
@@ -336,6 +383,14 @@ const makeStyles = (t: Theme) =>
     },
     alertTitle: { fontSize: 14, fontWeight: "700", color: t.colors.textPrimary },
     alertMsg: { fontSize: 12, color: t.colors.textSecondary, marginTop: 2 },
+    criticalCountPill: { backgroundColor: t.colors.error, borderRadius: 999, minWidth: 22, height: 22, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
+    criticalCountText: { color: t.colors.onStatus, fontSize: 12, fontWeight: "800" },
+    criticalRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: t.colors.error, borderRadius: t.radius.md, padding: 12, marginBottom: 8 },
+    criticalName: { fontSize: 14, fontWeight: "800", color: t.colors.onStatus },
+    criticalSub: { fontSize: 12, color: t.colors.onStatus, opacity: 0.9, marginTop: 1 },
+    criticalReasons: { fontSize: 12, color: t.colors.onStatus, opacity: 0.85, marginTop: 3, fontWeight: "600" },
+    criticalViewAll: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: t.colors.errorLight, borderRadius: t.radius.md, paddingVertical: 11, marginTop: 2 },
+    criticalViewAllText: { fontSize: 13, fontWeight: "800", color: t.colors.errorText },
     priorityPill: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 5 },
     priorityText: { fontSize: 12, fontWeight: "800" },
     recentRow: {

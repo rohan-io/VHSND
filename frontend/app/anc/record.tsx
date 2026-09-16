@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { DateField } from "@/src/components/DateField";
@@ -21,6 +22,29 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useOfflineSync } from "@/src/context/OfflineSyncContext";
 import { createANCVisit } from "@/src/api/mch";
 import { validateDate, todayISO, shiftISO } from "@/src/utils/date";
+import { COMORBIDITY_OPTIONS, type ComorbidityKey } from "@/src/utils/riskAssessment";
+import { useBlockAdminWrite } from "@/src/hooks/use-admin-guard";
+
+const CM_LABEL_KEY = {
+  diabetes: "cmDiabetes",
+  cardiac: "cmCardiac",
+  thyroid: "cmThyroid",
+  epilepsy: "cmEpilepsy",
+  kidney: "cmKidney",
+  tb: "cmTb",
+  hiv: "cmHiv",
+} as const satisfies Record<ComorbidityKey, string>;
+
+// Manual (Health Slip) checkboxes — [factor state key, i18n key].
+const MANUAL_ROWS = [
+  ["short_stature", "shortStature"],
+  ["hypertension", "hypertension"],
+  ["severe_anaemia", "severeAnaemia"],
+  ["bmi_abnormal", "bmiAbnormal"],
+  ["previous_c_section", "prevCSection"],
+  ["previous_stillbirth_or_pph", "prevStillbirthPph"],
+  ["multiple_gestation", "multipleGestation"],
+] as const;
 
 // Follow-up visit: from today out to roughly one more pregnancy's length.
 const NEXT_VISIT_MIN = todayISO();
@@ -30,37 +54,47 @@ export default function ANCRecordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { showToast } = useToast();
   const { user } = useAuth();
   const { isSimulatedOffline, addToOfflineQueue } = useOfflineSync();
   const { pregnancyId, visitNumber } = useLocalSearchParams<{ pregnancyId: string; visitNumber: string }>();
 
+  // Admin role is monitor/escalate/notify only — no writes on operational data,
+  // enforced here so direct navigation to this route can't bypass it (not just
+  // hiding the "Record ANC Visit" button that links here).
+  const blocked = useBlockAdminWrite("Admins have view-only access. ANC visits are recorded by field workers.");
+
   const [form, setForm] = useState({
-    weight: "",
-    bp_systolic: "",
-    bp_diastolic: "",
-    hemoglobin: "",
-    fundal_height: "",
-    fetal_heart_rate: "140",
     symptoms: "",
     examination_notes: "",
     advice: "",
     next_visit_date: "",
   });
+  const [factors, setFactors] = useState({
+    short_stature: false,
+    hypertension: false,
+    severe_anaemia: false,
+    bmi_abnormal: false,
+    previous_c_section: false,
+    previous_stillbirth_or_pph: false,
+    multiple_gestation: false,
+    critical_override: false,
+  });
+  const [comorbidities, setComorbidities] = useState<ComorbidityKey[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [nextVisitError, setNextVisitError] = useState<string | null>(null);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleFactor = (k: keyof typeof factors) => setFactors((f) => ({ ...f, [k]: !f[k] }));
+  const toggleComorbidity = (k: ComorbidityKey) =>
+    setComorbidities((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]));
   const setNextVisit = (v: string) => {
     setForm((f) => ({ ...f, next_visit_date: v }));
     if (nextVisitError) setNextVisitError(null);
   };
 
   const handleSubmit = async () => {
-    if (!form.weight || !form.bp_systolic || !form.bp_diastolic || !form.hemoglobin) {
-      showToast("Weight, BP and Haemoglobin are required.", "error");
-      return;
-    }
     if (form.next_visit_date.trim()) {
       const nvMsg = validateDate(form.next_visit_date, { min: NEXT_VISIT_MIN, max: NEXT_VISIT_MAX, label: "Next visit date" });
       if (nvMsg) { setNextVisitError(nvMsg); showToast(nvMsg, "error"); return; }
@@ -68,16 +102,21 @@ export default function ANCRecordScreen() {
     const payload = {
       pregnancy_id: pregnancyId,
       visit_number: Number(visitNumber) || 1,
-      weight: Number(form.weight),
-      bp_systolic: Number(form.bp_systolic),
-      bp_diastolic: Number(form.bp_diastolic),
-      hemoglobin: Number(form.hemoglobin),
-      fundal_height: form.fundal_height,
-      fetal_heart_rate: Number(form.fetal_heart_rate) || 140,
       symptoms: form.symptoms,
       examination_notes: form.examination_notes,
       advice: form.advice,
       next_visit_date: form.next_visit_date || undefined,
+      // Risk factors identified at this visit — additive on the server; only
+      // ticked ones are sent so a factor already on record is never cleared.
+      ...(factors.short_stature ? { short_stature: true } : {}),
+      ...(factors.hypertension ? { hypertension: true } : {}),
+      ...(factors.severe_anaemia ? { severe_anaemia: true } : {}),
+      ...(factors.bmi_abnormal ? { bmi_abnormal: true } : {}),
+      ...(factors.previous_c_section ? { previous_c_section: true } : {}),
+      ...(factors.previous_stillbirth_or_pph ? { previous_stillbirth_or_pph: true } : {}),
+      ...(factors.multiple_gestation ? { multiple_gestation: true } : {}),
+      ...(factors.critical_override ? { critical_override: true } : {}),
+      ...(comorbidities.length ? { comorbidities } : {}),
     };
     setSubmitting(true);
 
@@ -114,21 +153,24 @@ export default function ANCRecordScreen() {
     }
   };
 
-  const F = (label: string, key: keyof typeof form, ph: string, kt?: any, ml?: boolean) => (
+  const F = (label: string, key: keyof typeof form, ph: string) => (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         testID={`anc-${key}`}
-        style={[styles.input, ml && styles.inputMultiline]}
+        style={[styles.input, styles.inputMultiline]}
         value={form[key]}
         onChangeText={set(key)}
         placeholder={ph}
         placeholderTextColor={t.colors.textMuted}
-        keyboardType={kt}
-        multiline={ml}
+        multiline
       />
     </View>
   );
+
+  // Redirect is in flight (useBlockAdminWrite's effect) — render nothing rather
+  // than flash the write form for an Admin who navigated here directly.
+  if (blocked) return null;
 
   return (
     <View style={styles.root}>
@@ -136,25 +178,36 @@ export default function ANCRecordScreen() {
       <KeyboardAwareScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bottomOffset={20}>
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={16} color={t.colors.brandText} />
-          <Text style={styles.infoText}>High risk auto-flagged if BP ≥ 140/90 or Hb &lt; 9.0 g/dL.</Text>
+          <Text style={styles.infoText}>{tr.riskFactors.ancInfo}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Vitals</Text>
-        {F("Weight (kg)", "weight", "54", "decimal-pad")}
-        <View style={styles.rowTwo}>
-          <View style={{ flex: 1 }}>{F("BP Systolic", "bp_systolic", "120", "number-pad")}</View>
-          <View style={{ flex: 1 }}>{F("BP Diastolic", "bp_diastolic", "80", "number-pad")}</View>
+        <Text style={styles.sectionTitle}>{tr.riskFactors.ancNewlyIdentified}</Text>
+        {MANUAL_ROWS.map(([key, k2]) => (
+          <Pressable key={key} testID={`anc-factor-${key}`} onPress={() => toggleFactor(key)} style={styles.checkRow}>
+            <Ionicons name={factors[key] ? "checkbox" : "square-outline"} size={22} color={factors[key] ? t.colors.error : t.colors.textMuted} />
+            <Text style={styles.checkRowText}>{tr.riskFactors[k2]}</Text>
+          </Pressable>
+        ))}
+        <Text style={[styles.label, { marginTop: 8 }]}>{tr.riskFactors.comorbiditiesLabel}</Text>
+        <View style={styles.chipWrap}>
+          {COMORBIDITY_OPTIONS.map((opt) => {
+            const on = comorbidities.includes(opt.key);
+            return (
+              <Pressable key={opt.key} testID={`anc-cm-${opt.key}`} onPress={() => toggleComorbidity(opt.key)} style={[styles.cmChip, on && styles.cmChipActive]}>
+                <Text style={[styles.cmChipText, on && styles.cmChipTextActive]}>{tr.riskFactors[CM_LABEL_KEY[opt.key]]}</Text>
+              </Pressable>
+            );
+          })}
         </View>
-        {F("Haemoglobin (g/dL)", "hemoglobin", "11.5", "decimal-pad")}
-        <View style={styles.rowTwo}>
-          <View style={{ flex: 1 }}>{F("Fundal Height", "fundal_height", "24 cm")}</View>
-          <View style={{ flex: 1 }}>{F("Fetal Heart Rate", "fetal_heart_rate", "140", "number-pad")}</View>
-        </View>
+        <Pressable testID="anc-factor-critical_override" onPress={() => toggleFactor("critical_override")} style={styles.checkRow}>
+          <Ionicons name={factors.critical_override ? "checkbox" : "square-outline"} size={22} color={factors.critical_override ? t.colors.error : t.colors.textMuted} />
+          <Text style={styles.checkRowText}>{tr.riskFactors.clinicianOverride}</Text>
+        </Pressable>
 
         <Text style={styles.sectionTitle}>Assessment</Text>
-        {F("Symptoms", "symptoms", "Fetal movements, swelling, etc.", undefined, true)}
-        {F("Examination Notes", "examination_notes", "Clinical observations", undefined, true)}
-        {F("Advice Given", "advice", "IFA tablets, diet, follow-up", undefined, true)}
+        {F("Symptoms", "symptoms", "Fetal movements, swelling, etc.")}
+        {F("Examination Notes", "examination_notes", "Clinical observations")}
+        {F("Advice Given", "advice", "IFA tablets, diet, follow-up")}
         <View style={styles.field}>
           <Text style={styles.label}>Next Visit Date</Text>
           <DateField
@@ -193,7 +246,13 @@ const makeStyles = (t: Theme) =>
     label: { fontSize: 12, fontWeight: "700", color: t.colors.textPrimary, marginBottom: 6 },
     input: { backgroundColor: t.colors.surfaceSecondary, borderRadius: t.radius.md, borderWidth: 1, borderColor: t.colors.border, paddingHorizontal: 12, height: 46, fontSize: 14, color: t.colors.textPrimary },
     inputMultiline: { height: 70, paddingTop: 10, textAlignVertical: "top" },
-    rowTwo: { flexDirection: "row", gap: 10 },
+    checkRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10 },
+    checkRowText: { flex: 1, fontSize: 13, fontWeight: "600", color: t.colors.textPrimary, lineHeight: 18 },
+    chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
+    cmChip: { paddingHorizontal: 12, height: 40, justifyContent: "center", borderRadius: t.radius.pill, backgroundColor: t.colors.surfaceSecondary, borderWidth: 1, borderColor: t.colors.border },
+    cmChipActive: { backgroundColor: t.colors.errorLight, borderColor: t.colors.errorBorder },
+    cmChipText: { fontSize: 12, fontWeight: "700", color: t.colors.textSecondary },
+    cmChipTextActive: { color: t.colors.errorText },
     footer: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: t.colors.surfaceSecondary, borderTopWidth: 1, borderTopColor: t.colors.border },
     submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: t.colors.brand, borderRadius: t.radius.md, height: 52 },
     submitText: { color: t.colors.onBrand, fontSize: 15, fontWeight: "700" },

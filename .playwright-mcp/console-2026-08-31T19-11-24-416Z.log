@@ -1,8 +1,0 @@
-[     658ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:17959
-[     749ms] [LOG] Running application "main" with appParams:
- {rootTag: #root, hydrate: undefined} 
-Development-level warnings: ON.
-Performance optimizations: OFF. @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:66218
-[    1071ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:24276
-[    1075ms] [WARNING] [Layout children]: No route named "(auth)" exists in nested children: [index, notifications, sync, (admin), (auth)/login, (tabs), anc/record, child/[id], child/register, pregnancy/[id], pregnancy/register] @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:56418
-[    1095ms] [WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:24276

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { useOfflineSync } from "@/src/context/OfflineSyncContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { isSimulatedOffline, toggleSimulatedOffline, pendingCount } = useOfflineSync();
   const { user } = useAuth();
@@ -101,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
                   { color: isSimulatedOffline ? t.colors.error : t.colors.brandDark },
                 ]}
               >
-                {isSimulatedOffline ? "Offline" : "Online"}
+                {isSimulatedOffline ? tr.common.offline : tr.common.online}
               </Text>
             </Pressable>
           )}
@@ -143,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Ionicons name="warning-outline" size={14} color={t.colors.error} />
           <Text style={styles.offlineRibbonText}>
-            Offline mode • {pendingCount} records queued on this device • Tap to sync
+            {tr.header.offlineRibbon.replace("{count}", String(pendingCount))}
           </Text>
         </Pressable>
       )}

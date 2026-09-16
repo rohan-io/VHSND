@@ -14,15 +14,22 @@ import { useRouter } from "expo-router";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { useAuth } from "@/src/context/AuthContext";
+import { DEMO_MODE } from "@/src/api/client";
+import { DemoCredentialsHint } from "@/src/components/DemoCredentialsHint";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { login, isLoading } = useAuth();
+
+  const roleTitle = (role: "Health Worker" | "Administrator") =>
+    role === "Administrator" ? tr.login.adminLogin : tr.login.healthWorkerLogin;
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +42,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      setErrorMsg("Please enter both username/mobile and password");
+      setErrorMsg(tr.login.needBoth);
       return;
     }
 
@@ -49,7 +56,7 @@ export default function LoginScreen() {
         router.replace("/(tabs)");
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Invalid credentials. Please try again.");
+      setErrorMsg(err.message || tr.login.invalidCreds);
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +83,7 @@ export default function LoginScreen() {
         <View style={styles.emblemBadge}>
           <Ionicons name="medical" size={14} color={t.colors.onBrand} />
         </View>
-        <Text style={styles.topGovText}>National Health Mission · State Portal</Text>
+        <Text style={styles.topGovText}>{tr.login.govPortal}</Text>
       </View>
 
       <KeyboardAwareScrollView
@@ -91,20 +98,23 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.appTitle}>ମା ଓ ଶିଶୁ ସୁରକ୍ଷା</Text>
           <Text style={styles.appTagline}>
-            Digital Care for Every Mother, Protection for Every Child
+            {tr.login.tagline}
           </Text>
           <View style={styles.disclaimerPill}>
             <Ionicons name="information-circle" size={13} color={t.colors.brandDark} />
             <Text style={styles.disclaimerText}>
-              Official Field Portal for ANM, ASHA & Supervisory Medical Officers
+              {tr.login.officialPortalFor}
             </Text>
           </View>
         </View>
 
+        {/* Demo-only credentials hint — remove for production (see component) */}
+        {DEMO_MODE && <DemoCredentialsHint />}
+
         {/* Role selection (shown until a role is chosen) */}
         {!selectedRole && (
           <View style={styles.credSection}>
-            <Text style={styles.sectionLabel}>Select your role to continue</Text>
+            <Text style={styles.sectionLabel}>{tr.login.selectRole}</Text>
             <View style={styles.credGrid}>
               <Pressable
                 testID="role-health-worker"
@@ -115,8 +125,8 @@ export default function LoginScreen() {
                   <Ionicons name="woman" size={18} color={t.colors.brandDark} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.credRole}>Health Worker Login</Text>
-                  <Text style={styles.credText}>ANM / ASHA field worker access</Text>
+                  <Text style={styles.credRole}>{tr.login.healthWorkerLogin}</Text>
+                  <Text style={styles.credText}>{tr.login.healthWorkerDesc}</Text>
                 </View>
                 <Ionicons name="chevron-forward-circle-outline" size={20} color={t.colors.textMuted} />
               </Pressable>
@@ -130,8 +140,8 @@ export default function LoginScreen() {
                   <Ionicons name="shield-checkmark" size={18} color={t.colors.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.credRole}>Administrator Login</Text>
-                  <Text style={styles.credText}>District / block oversight access</Text>
+                  <Text style={styles.credRole}>{tr.login.adminLogin}</Text>
+                  <Text style={styles.credText}>{tr.login.adminDesc}</Text>
                 </View>
                 <Ionicons name="chevron-forward-circle-outline" size={20} color={t.colors.textMuted} />
               </Pressable>
@@ -143,10 +153,10 @@ export default function LoginScreen() {
         {selectedRole && (
         <View style={styles.formCard}>
           <View style={styles.formHeaderRow}>
-            <Text style={styles.formTitle}>{selectedRole} Login</Text>
+            <Text style={styles.formTitle}>{roleTitle(selectedRole)}</Text>
             <Pressable testID="login-change-role-btn" onPress={resetRole} style={styles.changeRoleBtn}>
               <Ionicons name="swap-horizontal" size={14} color={t.colors.brandText} />
-              <Text style={styles.changeRoleText}>Change</Text>
+              <Text style={styles.changeRoleText}>{tr.common.change}</Text>
             </Pressable>
           </View>
 
@@ -159,7 +169,7 @@ export default function LoginScreen() {
 
           {/* Username / Mobile Field */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Username / Mobile Number</Text>
+            <Text style={styles.inputLabel}>{tr.login.usernameLabel}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons
                 name="person-outline"
@@ -172,7 +182,7 @@ export default function LoginScreen() {
                 style={styles.textInput}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="Enter your username"
+                placeholder={tr.login.usernamePlaceholder}
                 placeholderTextColor={t.colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -182,7 +192,7 @@ export default function LoginScreen() {
 
           {/* Password Field */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <Text style={styles.inputLabel}>{tr.login.passwordLabel}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons
                 name="lock-closed-outline"
@@ -195,7 +205,7 @@ export default function LoginScreen() {
                 style={styles.textInput}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Enter your password"
+                placeholder={tr.login.passwordPlaceholder}
                 placeholderTextColor={t.colors.textMuted}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -226,14 +236,14 @@ export default function LoginScreen() {
                 size={18}
                 color={t.colors.brandText}
               />
-              <Text style={styles.rememberText}>Remember session</Text>
+              <Text style={styles.rememberText}>{tr.login.rememberSession}</Text>
             </Pressable>
 
             <Pressable
               testID="login-forgot-password-btn"
               onPress={() => setShowForgotModal(true)}
             >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+              <Text style={styles.forgotText}>{tr.login.forgotPassword}</Text>
             </Pressable>
           </View>
 
@@ -252,7 +262,7 @@ export default function LoginScreen() {
               <ActivityIndicator color={t.colors.onBrand} size="small" />
             ) : (
               <>
-                <Text style={styles.submitBtnText}>Sign In to MCH Portal</Text>
+                <Text style={styles.submitBtnText}>{tr.login.signIn}</Text>
                 <Ionicons name="arrow-forward" size={18} color={t.colors.onBrand} />
               </>
             )}
@@ -264,7 +274,7 @@ export default function LoginScreen() {
         <View style={styles.securityNotice}>
           <Ionicons name="lock-closed" size={14} color={t.colors.textMuted} />
           <Text style={styles.securityText}>
-            Encrypted session · Works offline · v2.6.4
+            {tr.login.securityNotice}
           </Text>
         </View>
       </KeyboardAwareScrollView>
@@ -275,21 +285,15 @@ export default function LoginScreen() {
           <View style={styles.modalContent} testID="forgot-password-modal">
             <View style={styles.modalHeader}>
               <Ionicons name="help-buoy-outline" size={24} color={t.colors.brandText} />
-              <Text style={styles.modalTitle}>Credential Recovery</Text>
+              <Text style={styles.modalTitle}>{tr.login.recoveryTitle}</Text>
             </View>
-            <Text style={styles.modalBody}>
-              In field deployment, password resets are authorized by the PHC Medical Officer or
-              Block Program Manager.{"\n\n"}
-              For this demo prototype, use:{"\n"}
-              • Admin: <Text style={styles.bold}>admin / Admin@123</Text>{"\n"}
-              • Worker: <Text style={styles.bold}>worker01 / Worker@123</Text>
-            </Text>
+            <Text style={styles.modalBody}>{tr.login.recoveryBody}</Text>
             <Pressable
               testID="close-forgot-password-modal-btn"
               onPress={() => setShowForgotModal(false)}
               style={styles.modalCloseBtn}
             >
-              <Text style={styles.modalCloseBtnText}>Close & Return to Login</Text>
+              <Text style={styles.modalCloseBtnText}>{tr.login.closeReturn}</Text>
             </Pressable>
           </View>
         </View>

@@ -24,21 +24,21 @@ export const DEMO_USERS: { role: UserRole; username: string; label: string; subL
     role: "Health Worker",
     username: "worker01",
     label: "Smruti Malla (ANM)",
-    subLabel: "PHC Rampur • Sector A (Rampur, Kalyanpur)",
+    subLabel: "CHC Jajpur Sadar • Sector A (Mangarajpur, Badatrilochanpur)",
     name: "Smruti Malla (ANM)"
   },
   {
     role: "Health Worker",
     username: "worker02",
-    label: "Pooja Verma (ASHA)",
-    subLabel: "PHC Rampur • Sector B (Bishnupur, Shantinagar)",
-    name: "Pooja Verma (ASHA)"
+    label: "Mamata Barik (ASHA)",
+    subLabel: "CHC Sukinda • Sector B (Gandhapal, Baradiha)",
+    name: "Mamata Barik (ASHA)"
   },
   {
     role: "Administrator",
     username: "admin",
     label: "Dilip Acharya (Admin / CMO)",
-    subLabel: "District Health Mission • Siddharthnagar",
+    subLabel: "District Health Mission • Jajpur",
     name: "Dilip Acharya"
   }
 ];
@@ -87,9 +87,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: foundDemo ? foundDemo.name : "Field Health Worker",
         role: (username === "admin" ? "Administrator" : "Health Worker") as UserRole,
         mobile: "9812345671",
-        phc_center: "PHC Rampur",
+        phc_center: "CHC Jajpur Sadar",
         sector: "Sector A",
-        assigned_villages: ["Rampur", "Kalyanpur"]
+        assigned_villages: ["Mangarajpur", "Badatrilochanpur"]
       };
       await setAuthToken("demo_offline_token");
       await storage.setItem(USER_KEY, fallbackUser);

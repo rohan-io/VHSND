@@ -14,6 +14,7 @@ export interface UserProfile {
 export interface PregnancyRecord {
   id: string;
   beneficiary_id: string;
+  rcn_id?: string;
   full_name: string;
   husband_name?: string;
   age: number;
@@ -34,6 +35,9 @@ export interface PregnancyRecord {
   gravida: number;
   para: number;
   blood_group?: string;
+  // Legacy numeric vitals — no longer collected on the form (replaced by the
+  // Health Slip photo); kept optional for historical/seed records.
+  height_cm?: number;
   weight?: number;
   bp_systolic?: number;
   bp_diastolic?: number;
@@ -42,6 +46,42 @@ export interface PregnancyRecord {
   fetal_heart_rate?: number;
   is_high_risk: boolean;
   high_risk_reasons?: string[];
+  // "Critical Pregnancy" screening (NHM/PMSMA). is_high_risk is the stored
+  // determination; these manual factors are read off the paper RCN Card
+  // (field name kept as health_slip_uri — the underlying data contract —
+  // even though the UI now calls it "RCN Card").
+  health_slip_uri?: string;
+  // PMSMA (free ANC checkup camp, 9th of every month) — see src/utils/pmsma.ts.
+  last_pmsma_check_date?: string;
+  short_stature?: boolean;
+  hypertension?: boolean;
+  severe_anaemia?: boolean;
+  bmi_abnormal?: boolean;
+  previous_c_section?: boolean;
+  previous_stillbirth_or_pph?: boolean; // legacy combined field, still used by the ANC follow-up form
+  previous_stillbirth?: boolean;
+  previous_preterm?: boolean;
+  previous_recurrent_abortion?: boolean;
+  previous_congenital_anomaly?: boolean;
+  previous_pph?: boolean;
+  previous_severe_preeclampsia?: boolean;
+  aph?: boolean;
+  malpresentation?: boolean;
+  placenta_previa?: boolean;
+  fgr?: boolean;
+  rh_isoimmunisation?: boolean;
+  amniotic_fluid_abnormal?: boolean;
+  congenital_fetal_anomaly?: boolean;
+  respiratory_disease?: boolean;
+  autoimmune_disorder?: boolean;
+  poor_nutrition?: boolean;
+  poor_antenatal_care?: boolean;
+  post_term?: boolean;
+  prolonged_rom?: boolean;
+  other_abnormality_text?: string;
+  comorbidities?: string[];
+  multiple_gestation?: boolean;
+  critical_override?: boolean;
   previous_pregnancy_history?: string;
   existing_conditions?: string;
   allergies?: string;
@@ -70,10 +110,12 @@ export interface ANCVisit {
   visit_number: number;
   visit_date: string;
   gestational_weeks_at_visit: number;
-  weight: number;
-  bp_systolic: number;
-  bp_diastolic: number;
-  hemoglobin: number;
+  // Legacy numeric vitals — not captured on the redesigned ANC form; optional
+  // so historical/seed visits still render.
+  weight?: number;
+  bp_systolic?: number;
+  bp_diastolic?: number;
+  hemoglobin?: number;
   fundal_height?: string;
   fetal_heart_rate?: number;
   symptoms?: string;

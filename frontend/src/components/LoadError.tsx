@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 
 interface Props {
@@ -15,24 +16,25 @@ interface Props {
  * connection never reads as "nothing here yet" and prompts a duplicate entry.
  */
 export const LoadError: React.FC<Props> = ({
-  message = "Can't reach the server right now.",
+  message,
   onRetry,
   testID,
 }) => {
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={styles.wrap} testID={testID}>
       <Ionicons name="cloud-offline-outline" size={40} color={t.colors.textMuted} />
-      <Text style={styles.title}>Couldn&apos;t load</Text>
-      <Text style={styles.sub}>{message}</Text>
+      <Text style={styles.title}>{tr.common.couldntLoad}</Text>
+      <Text style={styles.sub}>{message ?? tr.common.loadErrorDefault}</Text>
       <Pressable
         onPress={onRetry}
         style={styles.btn}
         testID={testID ? `${testID}-retry` : undefined}
       >
         <Ionicons name="refresh" size={15} color={t.colors.onBrand} />
-        <Text style={styles.btnText}>Retry</Text>
+        <Text style={styles.btnText}>{tr.common.retry}</Text>
       </Pressable>
     </View>
   );

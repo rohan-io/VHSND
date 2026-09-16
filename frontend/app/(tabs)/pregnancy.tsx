@@ -14,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { StatusBadge } from "@/src/components/StatusBadge";
@@ -22,19 +23,19 @@ import { listPregnancies } from "@/src/api/mch";
 import { PregnancyRecord } from "@/src/types";
 import { pregnancyStatusLabel } from "@/src/utils/pregnancy";
 
-const FILTERS = [
-  { key: "all", label: "All" },
-  { key: "high_risk", label: "High Risk" },
-  { key: "t1", label: "1st Trimester" },
-  { key: "t2", label: "2nd Trimester" },
-  { key: "t3", label: "3rd Trimester" },
-  { key: "delivered", label: "Delivered" },
-];
-
 export default function PregnancyListScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const FILTERS = [
+    { key: "all", label: tr.pregnancyList.filterAll },
+    { key: "high_risk", label: tr.pregnancyList.filterHighRisk },
+    { key: "t1", label: tr.pregnancyList.filterT1 },
+    { key: "t2", label: tr.pregnancyList.filterT2 },
+    { key: "t3", label: tr.pregnancyList.filterT3 },
+    { key: "delivered", label: tr.pregnancyList.filterDelivered },
+  ];
   const [items, setItems] = useState<PregnancyRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -84,12 +85,12 @@ export default function PregnancyListScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>{item.full_name}</Text>
-          <Text style={styles.sub} numberOfLines={1}>W/o {item.husband_name || "—"} • Age {item.age}</Text>
+          <Text style={styles.sub} numberOfLines={1}>{tr.pregnancyList.wifeOf} {item.husband_name || "—"} • {tr.pregnancyList.age} {item.age}</Text>
         </View>
         {item.is_high_risk ? (
           <View style={styles.riskTag}>
             <Ionicons name="warning" size={12} color={t.colors.errorText} />
-            <Text style={styles.riskTagText}>HIGH RISK</Text>
+            <Text style={styles.riskTagText}>{tr.pregnancyList.riskTag}</Text>
           </View>
         ) : null}
       </View>
@@ -116,7 +117,7 @@ export default function PregnancyListScreen() {
 
   return (
     <View style={styles.root}>
-      <Header title="Pregnancy Registry" showOfflineToggle />
+      <Header title={tr.pregnancyList.title} showOfflineToggle />
 
       {/* Sticky search + chips */}
       <View style={styles.stickyHeader}>
@@ -125,7 +126,7 @@ export default function PregnancyListScreen() {
           <TextInput
             testID="pregnancy-search-input"
             style={styles.searchInput}
-            placeholder="Search name, ID, mobile, village…"
+            placeholder={tr.pregnancyList.searchPlaceholder}
             placeholderTextColor={t.colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -173,32 +174,32 @@ export default function PregnancyListScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <Text style={styles.countText}>{total} beneficiaries found</Text>
+            <Text style={styles.countText}>{total} {tr.pregnancyList.countFound}</Text>
           }
           ListEmptyComponent={
             search.trim() || filter !== "all" ? (
               <View style={styles.centerFill}>
                 <Ionicons name="search-outline" size={40} color={t.colors.textMuted} />
-                <Text style={styles.emptyText}>No beneficiaries match this search or filter.</Text>
+                <Text style={styles.emptyText}>{tr.pregnancyList.noMatch}</Text>
                 <Pressable
                   testID="pregnancy-empty-clear"
                   onPress={() => { setSearch(""); setFilter("all"); load("", "all"); }}
                   style={styles.emptyBtn}
                 >
-                  <Text style={styles.emptyBtnText}>Clear search & filters</Text>
+                  <Text style={styles.emptyBtnText}>{tr.pregnancyList.clearFilters}</Text>
                 </Pressable>
               </View>
             ) : (
               <View style={styles.centerFill}>
                 <Ionicons name="clipboard-outline" size={40} color={t.colors.textMuted} />
-                <Text style={styles.emptyText}>No pregnancies registered yet.</Text>
+                <Text style={styles.emptyText}>{tr.pregnancyList.noneYet}</Text>
                 <Pressable
                   testID="pregnancy-empty-register"
                   onPress={() => router.push("/pregnancy/register")}
                   style={styles.emptyBtn}
                 >
                   <Ionicons name="add" size={16} color={t.colors.onBrand} />
-                  <Text style={styles.emptyBtnText}>Register a pregnancy</Text>
+                  <Text style={styles.emptyBtnText}>{tr.pregnancyList.registerOne}</Text>
                 </Pressable>
               </View>
             )

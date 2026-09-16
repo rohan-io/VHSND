@@ -86,3 +86,11 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+frontend/android/
+
+# Local tooling artifacts (not part of the project)
+.emergent/
+.playwright-mcp/
+.gitconfig
+extra/
+backend/.pytest_cache/

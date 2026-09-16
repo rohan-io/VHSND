@@ -6,12 +6,15 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Image,
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { StatusBadge } from "@/src/components/StatusBadge";
@@ -20,17 +23,27 @@ import { useToast } from "@/src/components/Toast";
 import { LoadError } from "@/src/components/LoadError";
 import { useArmConfirm } from "@/src/hooks/use-arm-confirm";
 import { isTrulyDelivered } from "@/src/utils/pregnancy";
-import { getPregnancy, completeMaternalImm } from "@/src/api/mch";
+import { getPregnancy, completeMaternalImm, markPmsmaAttended } from "@/src/api/mch";
 import { ANCVisit, MaternalImmunization, PregnancyRecord, ChildRecord } from "@/src/types";
+import { useAuth } from "@/src/context/AuthContext";
+import { isAdmin } from "@/src/utils/roles";
+import { pmsmaStatus } from "@/src/utils/pmsma";
 
 type Tab = "visits" | "vaccines" | "vitals";
 
 export default function PregnancyDetailScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  // Admin role is monitor/escalate/notify only — this screen stays fully
+  // viewable (history, vitals, RCN card, risk factors) but its two write
+  // actions (Record ANC Visit, Mark Administered) are gated at the point of
+  // action below, not just hidden.
+  const readOnly = isAdmin(user);
 
   const [pregnancy, setPregnancy] = useState<PregnancyRecord | null>(null);
   const [visits, setVisits] = useState<ANCVisit[]>([]);
@@ -39,7 +52,9 @@ export default function PregnancyDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("visits");
+  const [slipFull, setSlipFull] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pmsmaBusy, setPmsmaBusy] = useState(false);
   const { armedId, confirm } = useArmConfirm();
 
   const load = useCallback(async () => {
@@ -65,23 +80,37 @@ export default function PregnancyDetailScreen() {
   );
 
   const markImm = async (immId: string) => {
-    if (!id) return;
+    if (!id || readOnly) return; // point-of-action guard
     setBusyId(immId);
     try {
       await completeMaternalImm(id, immId);
-      showToast("Maternal vaccine marked completed.", "success");
+      showToast(tr.pregnancyDetail.toastAncSaved, "success");
       await load();
     } catch (e: any) {
-      showToast(e.message || "Failed to update vaccine.", "error");
+      showToast(e.message || tr.pregnancyDetail.toastAncFailed, "error");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const markPmsma = async () => {
+    if (!id || readOnly) return; // point-of-action guard
+    setPmsmaBusy(true);
+    try {
+      const updated = await markPmsmaAttended(id);
+      setPregnancy(updated);
+      showToast(tr.pmsmaScreen.markedToast, "success");
+    } catch (e: any) {
+      showToast(e.message || "Failed to update.", "error");
+    } finally {
+      setPmsmaBusy(false);
     }
   };
 
   if (loading) {
     return (
       <View style={styles.root}>
-        <Header title="Pregnancy Record" showBack showOfflineToggle={false} />
+        <Header title={tr.pregnancyDetail.title} showBack showOfflineToggle={false} />
         <View style={styles.centerFill}>
           <ActivityIndicator size="large" color={t.colors.brand} />
         </View>
@@ -92,7 +121,7 @@ export default function PregnancyDetailScreen() {
   if (loadFailed) {
     return (
       <View style={styles.root}>
-        <Header title="Pregnancy Record" showBack showOfflineToggle={false} />
+        <Header title={tr.pregnancyDetail.title} showBack showOfflineToggle={false} />
         <LoadError onRetry={() => { setLoading(true); load(); }} testID="pregnancy-detail-error" />
       </View>
     );
@@ -101,19 +130,20 @@ export default function PregnancyDetailScreen() {
   if (!pregnancy) {
     return (
       <View style={styles.root}>
-        <Header title="Pregnancy Record" showBack showOfflineToggle={false} />
+        <Header title={tr.pregnancyDetail.title} showBack showOfflineToggle={false} />
         <View style={styles.centerFill}>
-          <Text style={styles.emptyText}>This record could not be found. It may have been removed.</Text>
+          <Text style={styles.emptyText}>{tr.pregnancyDetail.notFound}</Text>
         </View>
       </View>
     );
   }
 
   const p = pregnancy;
+  const delivered = isTrulyDelivered(p);
 
   return (
     <View style={styles.root}>
-      <Header title="Pregnancy Record" showBack showOfflineToggle={false} />
+      <Header title={tr.pregnancyDetail.title} showBack showOfflineToggle={false} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Profile banner */}
         <View style={styles.banner}>
@@ -123,19 +153,43 @@ export default function PregnancyDetailScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>{p.full_name}</Text>
-              <Text style={styles.sub} numberOfLines={1}>W/o {p.husband_name} • Age {p.age} • {p.blood_group}</Text>
+              <Text style={styles.sub} numberOfLines={1}>{tr.pregnancyDetail.wifeOf} {p.husband_name} • {tr.pregnancyDetail.age} {p.age} • {p.blood_group}</Text>
               <Text style={styles.sub}>{p.beneficiary_id}</Text>
             </View>
           </View>
           <View style={styles.bannerMeta}>
             <View style={styles.metaChip}><Ionicons name="call" size={12} color={t.colors.brandDark} /><Text style={styles.metaChipText}>{p.mobile_number}</Text></View>
             <View style={styles.metaChip}><Ionicons name="location" size={12} color={t.colors.brandDark} /><Text style={styles.metaChipText}>{p.village}, {p.block}</Text></View>
+            {delivered ? (
+              <View style={[styles.metaChip, styles.deliveredChip]} testID="pregnancy-delivered-chip">
+                <Ionicons name="checkmark-circle" size={12} color={t.colors.successText} />
+                <Text style={[styles.metaChipText, { color: t.colors.successText }]}>{tr.pregnancyDetail.deliveredYes}</Text>
+              </View>
+            ) : (
+              <View style={[styles.metaChip, styles.notDeliveredChip]} testID="pregnancy-delivered-chip">
+                <Ionicons name="ellipse-outline" size={12} color={t.colors.textMuted} />
+                <Text style={[styles.metaChipText, { color: t.colors.textMuted }]}>{tr.pregnancyDetail.deliveredNo}</Text>
+              </View>
+            )}
+            {!delivered && (
+              pmsmaStatus(p.last_pmsma_check_date) === "epmsma" ? (
+                <View testID="pregnancy-pmsma-chip" style={[styles.metaChip, styles.pmsmaMissedChip]}>
+                  <Ionicons name="alert-circle" size={12} color={t.colors.errorText} />
+                  <Text style={[styles.metaChipText, { color: t.colors.errorText }]}>{tr.dashboard.epmsma}</Text>
+                </View>
+              ) : (
+                <View testID="pregnancy-pmsma-chip" style={[styles.metaChip, styles.deliveredChip]}>
+                  <Ionicons name="checkmark-circle" size={12} color={t.colors.successText} />
+                  <Text style={[styles.metaChipText, { color: t.colors.successText }]}>{tr.dashboard.pmsma}</Text>
+                </View>
+              )
+            )}
           </View>
           {p.is_high_risk && (
             <View style={styles.riskBanner}>
               <Ionicons name="warning" size={15} color={t.colors.errorText} />
               <Text style={styles.riskBannerText}>
-                HIGH RISK: {(p.high_risk_reasons || []).join(", ") || "Requires close monitoring"}
+                {tr.pregnancyDetail.highRiskPrefix} {(p.high_risk_reasons || []).join(", ") || tr.pregnancyDetail.highRiskFallback}
               </Text>
             </View>
           )}
@@ -149,31 +203,40 @@ export default function PregnancyDetailScreen() {
           edd={p.edd}
         />
 
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          <Pressable
-            testID="record-anc-btn"
-            onPress={() => router.push(`/anc/record?pregnancyId=${p.id}&visitNumber=${visits.length + 1}` as any)}
-            style={styles.primaryAction}
-          >
-            <Ionicons name="clipboard" size={16} color={t.colors.onBrand} />
-            <Text style={styles.primaryActionText}>Record ANC Visit</Text>
-          </Pressable>
-          {!isTrulyDelivered(p) && (
+        {/* Action buttons. "Register Child" entry point intentionally removed
+            while the Children section is hidden from navigation. Admin role
+            is monitor/escalate/notify only — no write actions here. */}
+        {!readOnly && (
+          <View style={styles.actionRow}>
             <Pressable
-              testID="register-child-btn"
-              onPress={() => router.push(`/child/register?motherId=${p.id}` as any)}
+              testID="record-anc-btn"
+              onPress={() => router.push(`/anc/record?pregnancyId=${p.id}&visitNumber=${visits.length + 1}` as any)}
+              style={styles.primaryAction}
+            >
+              <Ionicons name="clipboard" size={16} color={t.colors.onBrand} />
+              <Text style={styles.primaryActionText}>{tr.pregnancyDetail.recordAncVisit}</Text>
+            </Pressable>
+            <Pressable
+              testID="mark-pmsma-btn"
+              onPress={markPmsma}
+              disabled={pmsmaBusy}
               style={styles.secondaryAction}
             >
-              <Ionicons name="person-add" size={16} color={t.colors.brandDark} />
-              <Text style={styles.secondaryActionText}>Register Child</Text>
+              {pmsmaBusy ? (
+                <ActivityIndicator color={t.colors.brandDark} />
+              ) : (
+                <>
+                  <Ionicons name="calendar" size={16} color={t.colors.brandDark} />
+                  <Text style={styles.secondaryActionText}>{tr.pmsmaScreen.markAttended}</Text>
+                </>
+              )}
             </Pressable>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Tabs */}
         <View style={styles.tabBar}>
-          {([["visits", "ANC Visits"], ["vaccines", "Immunisation"], ["vitals", "Vitals"]] as [Tab, string][]).map(([key, label]) => (
+          {([["visits", tr.pregnancyDetail.tabVisits], ["vaccines", tr.pregnancyDetail.tabVaccines], ["vitals", tr.pregnancyDetail.tabVitals]] as [Tab, string][]).map(([key, label]) => (
             <Pressable key={key} testID={`detail-tab-${key}`} onPress={() => setTab(key)} style={[styles.tabBtn, tab === key && styles.tabBtnActive]}>
               <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
             </Pressable>
@@ -183,21 +246,29 @@ export default function PregnancyDetailScreen() {
         {tab === "visits" && (
           <View>
             {visits.length === 0 ? (
-              <Text style={styles.emptyText}>No ANC visits recorded yet.</Text>
+              <Text style={styles.emptyText}>{tr.pregnancyDetail.noVisits}</Text>
             ) : (
               visits.map((v) => (
                 <View key={v.id} style={styles.recordCard} testID={`anc-visit-${v.id}`}>
                   <View style={styles.recordHeader}>
-                    <Text style={styles.recordTitle}>ANC Visit #{v.visit_number}</Text>
+                    <Text style={styles.recordTitle}>{tr.pregnancyDetail.ancVisitNo}{v.visit_number}</Text>
                     <StatusBadge status={v.status} />
                   </View>
-                  <Text style={styles.recordSub}>{v.visit_date} • {v.gestational_weeks_at_visit} weeks</Text>
-                  <View style={styles.vitalGrid}>
-                    <View style={styles.vitalItem}><Text style={styles.vitalLabel}>BP</Text><Text style={styles.vitalVal}>{v.bp_systolic}/{v.bp_diastolic}</Text></View>
-                    <View style={styles.vitalItem}><Text style={styles.vitalLabel}>Weight</Text><Text style={styles.vitalVal}>{v.weight} kg</Text></View>
-                    <View style={styles.vitalItem}><Text style={styles.vitalLabel}>Hb</Text><Text style={styles.vitalVal}>{v.hemoglobin} g/dL</Text></View>
-                    <View style={styles.vitalItem}><Text style={styles.vitalLabel}>FHR</Text><Text style={styles.vitalVal}>{v.fetal_heart_rate}</Text></View>
-                  </View>
+                  <Text style={styles.recordSub}>{v.visit_date} • {v.gestational_weeks_at_visit} {tr.pregnancyDetail.weeksSuffix}</Text>
+                  {v.bp_systolic != null || v.weight != null || v.hemoglobin != null ? (
+                    <View style={styles.vitalGrid}>
+                      <View style={styles.vitalItem}><Text style={styles.vitalLabel}>{tr.pregnancyDetail.vBp}</Text><Text style={styles.vitalVal}>{v.bp_systolic ?? "—"}/{v.bp_diastolic ?? "—"}</Text></View>
+                      <View style={styles.vitalItem}><Text style={styles.vitalLabel}>{tr.pregnancyDetail.vWeight}</Text><Text style={styles.vitalVal}>{v.weight != null ? `${v.weight} kg` : "—"}</Text></View>
+                      <View style={styles.vitalItem}><Text style={styles.vitalLabel}>{tr.pregnancyDetail.vHb}</Text><Text style={styles.vitalVal}>{v.hemoglobin != null ? `${v.hemoglobin} g/dL` : "—"}</Text></View>
+                      <View style={styles.vitalItem}><Text style={styles.vitalLabel}>{tr.pregnancyDetail.vFhr}</Text><Text style={styles.vitalVal}>{v.fetal_heart_rate ?? "—"}</Text></View>
+                    </View>
+                  ) : null}
+                  {v.risk_status === "High Risk" ? (
+                    <View style={styles.visitRiskChip}>
+                      <Ionicons name="warning" size={12} color={t.colors.errorText} />
+                      <Text style={styles.visitRiskChipText}>{tr.status.highRisk}</Text>
+                    </View>
+                  ) : null}
                   {v.advice ? (
                     <View style={styles.adviceRow}>
                       <Ionicons name="chatbubble-ellipses-outline" size={13} color={t.colors.textMuted} />
@@ -212,7 +283,7 @@ export default function PregnancyDetailScreen() {
 
         {tab === "vaccines" && (
           <View>
-            <Text style={styles.demoNote}>Sample schedule shown. Confirm against the approved national schedule before clinical use.</Text>
+            <Text style={styles.demoNote}>{tr.pregnancyDetail.vaccineDemoNote}</Text>
             {imms.map((im) => {
               const armed = armedId === im.id;
               return (
@@ -221,9 +292,9 @@ export default function PregnancyDetailScreen() {
                     <Text style={styles.recordTitle} numberOfLines={1}>{im.vaccine_name}</Text>
                     <StatusBadge status={im.status} />
                   </View>
-                  <Text style={styles.recordSub}>{im.dose} • Due {im.due_date}</Text>
+                  <Text style={styles.recordSub}>{im.dose} • {tr.pregnancyDetail.doseDuePrefix} {im.due_date}</Text>
                   <Text style={styles.recordDesc}>{im.description}</Text>
-                  {im.status !== "Completed" && im.status !== "Upcoming" && (
+                  {im.status !== "Completed" && im.status !== "Upcoming" && !readOnly && (
                     <Pressable
                       testID={`complete-mat-imm-${im.id}`}
                       onPress={() => { if (confirm(im.id)) markImm(im.id); }}
@@ -240,7 +311,7 @@ export default function PregnancyDetailScreen() {
                             color={armed ? t.colors.onWarning : t.colors.onStatus}
                           />
                           <Text style={[styles.markBtnText, armed && { color: t.colors.onWarning }]}>
-                            {armed ? "Tap to confirm" : "Mark Administered"}
+                            {armed ? tr.pregnancyDetail.tapToConfirm : tr.pregnancyDetail.markAdministered}
                           </Text>
                         </>
                       )}
@@ -249,7 +320,7 @@ export default function PregnancyDetailScreen() {
                   {im.status === "Completed" && im.administration_date ? (
                     <View style={styles.givenRow}>
                       <Ionicons name="checkmark-circle" size={13} color={t.colors.successText} />
-                      <Text style={styles.givenText}>Given on {im.administration_date} • Batch {im.batch_number || "—"}</Text>
+                      <Text style={styles.givenText}>{tr.pregnancyDetail.givenOn} {im.administration_date} • {tr.pregnancyDetail.batch} {im.batch_number || "—"}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -259,31 +330,87 @@ export default function PregnancyDetailScreen() {
         )}
 
         {tab === "vitals" && (
-          <View style={styles.recordCard}>
-            {[
-              ["Gravida / Para", `G${p.gravida} P${p.para}`],
-              ["Blood Group", p.blood_group || "—"],
-              ["Latest Weight", `${p.weight} kg`],
-              ["Blood Pressure", `${p.bp_systolic}/${p.bp_diastolic} mmHg`],
-              ["Haemoglobin", `${p.hemoglobin} g/dL`],
-              ["LMP", p.lmp],
-              ["Registration Date", p.registration_date || "—"],
-              ["Existing Conditions", p.existing_conditions || "None"],
-              ["Allergies", p.allergies || "None"],
-              ["Previous History", p.previous_pregnancy_history || "—"],
-              ["Assigned Worker", p.assigned_worker_name || "—"],
-            ].map(([label, val], i) => (
-              <View key={i} style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoVal}>{val}</Text>
+          <View>
+            {/* RCN Card photo (no OCR — stored image only) */}
+            <View style={styles.recordCard}>
+              <Text style={styles.vitalsSectionTitle}>{tr.pregnancyDetail.rcnCardLabel}</Text>
+              {p.health_slip_uri ? (
+                <Pressable testID="vitals-slip-thumb" onPress={() => setSlipFull(true)} style={styles.slipThumbWrap}>
+                  <Image source={{ uri: p.health_slip_uri }} style={styles.slipThumb} resizeMode="cover" />
+                  <View style={styles.slipThumbHint}>
+                    <Ionicons name="expand" size={12} color={t.colors.onStatus} />
+                    <Text style={styles.slipThumbHintText}>{tr.pregnancyDetail.viewFullSlip}</Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <Text style={styles.emptyLine}>{tr.pregnancyDetail.noRcnCard}</Text>
+              )}
+            </View>
+
+            {/* Flagged risk factors + Critical determination */}
+            <View style={styles.recordCard}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>{tr.pregnancyDetail.criticalPregnancy}</Text>
+                <Text
+                  testID="vitals-critical-value"
+                  style={[styles.infoVal, { color: p.is_high_risk ? t.colors.errorText : t.colors.successText }]}
+                >
+                  {p.is_high_risk ? tr.riskFactors.criticalYes : tr.riskFactors.criticalNo}
+                </Text>
               </View>
-            ))}
+              <Text style={[styles.vitalsSectionTitle, { marginTop: 12 }]}>{tr.pregnancyDetail.flaggedFactors}</Text>
+              {(p.high_risk_reasons || []).length === 0 ? (
+                <Text style={styles.emptyLine}>{tr.pregnancyDetail.noFlaggedFactors}</Text>
+              ) : (
+                (p.high_risk_reasons || []).map((r) => (
+                  <View key={r} style={styles.flagRow} testID="vitals-flagged-factor">
+                    <Ionicons name="warning" size={15} color={t.colors.errorText} />
+                    <Text style={styles.flagRowText}>{r}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Record particulars (no numeric vitals) */}
+            <View style={styles.recordCard}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>{tr.pregnancyDetail.delivered}</Text>
+                <Text testID="vitals-delivered-value" style={styles.infoVal}>
+                  {delivered ? tr.pregnancyDetail.deliveredYes : tr.pregnancyDetail.deliveredNo}
+                </Text>
+              </View>
+              {delivered && p.delivery_details ? (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>{tr.pregnancyDetail.deliveryDate}</Text>
+                    <Text style={styles.infoVal}>{p.delivery_details.date || "—"}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>{tr.pregnancyDetail.deliveryOutcome}</Text>
+                    <Text style={styles.infoVal}>{p.delivery_details.outcome || "—"}</Text>
+                  </View>
+                </>
+              ) : null}
+              {[
+                [tr.pregnancyDetail.gravidaPara, `G${p.gravida} P${p.para}`],
+                [tr.pregnancyDetail.bloodGroup, p.blood_group || "—"],
+                [tr.pregnancyDetail.lmp, p.lmp],
+                [tr.pregnancyDetail.registrationDate, p.registration_date || "—"],
+                [tr.pregnancyDetail.allergies, p.allergies || tr.pregnancyDetail.none],
+                [tr.pregnancyDetail.assignedWorker, p.assigned_worker_name || "—"],
+              ].map(([label, val], i) => (
+                <View key={i} style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>{label}</Text>
+                  <Text style={styles.infoVal}>{val}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
         {children.length > 0 && (
           <View style={{ marginTop: 8 }}>
-            <Text style={styles.sectionTitle}>Linked Children</Text>
+            <Text style={styles.sectionTitle}>{tr.pregnancyDetail.linkedChildren}</Text>
             {children.map((c) => (
               <Pressable key={c.id} testID={`linked-child-${c.id}`} onPress={() => router.push(`/child/${c.id}` as any)} style={styles.childLink}>
                 <Ionicons name="people-outline" size={18} color={t.colors.info} />
@@ -294,6 +421,17 @@ export default function PregnancyDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={slipFull} transparent animationType="fade" onRequestClose={() => setSlipFull(false)}>
+        <Pressable testID="slip-full-overlay" style={styles.slipModalBg} onPress={() => setSlipFull(false)}>
+          {p.health_slip_uri ? (
+            <Image source={{ uri: p.health_slip_uri }} style={styles.slipFull} resizeMode="contain" />
+          ) : null}
+          <Pressable style={styles.slipCloseBtn} onPress={() => setSlipFull(false)}>
+            <Ionicons name="close" size={22} color={t.colors.onStatus} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -313,6 +451,9 @@ const makeStyles = (t: Theme) =>
     bannerMeta: { flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" },
     metaChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: t.colors.brandLight, paddingHorizontal: 8, paddingVertical: 5, borderRadius: t.radius.sm },
     metaChipText: { fontSize: 12, fontWeight: "700", color: t.colors.brandDark },
+    deliveredChip: { backgroundColor: t.colors.successLight },
+    notDeliveredChip: { backgroundColor: t.colors.surfaceTertiary },
+    pmsmaMissedChip: { backgroundColor: t.colors.errorLight },
     riskBanner: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: t.colors.errorLight, borderRadius: t.radius.sm, padding: 12, marginTop: 12 },
     riskBannerText: { flex: 1, fontSize: 13, fontWeight: "700", color: t.colors.errorText },
     actionRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
@@ -345,6 +486,21 @@ const makeStyles = (t: Theme) =>
     infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: t.colors.divider, gap: 12 },
     infoLabel: { fontSize: 12, color: t.colors.textSecondary, fontWeight: "600" },
     infoVal: { fontSize: 12, color: t.colors.textPrimary, fontWeight: "700", flex: 1, textAlign: "right" },
+    reasonRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: t.colors.divider },
+    reasonText: { fontSize: 12, color: t.colors.errorText, fontWeight: "600", lineHeight: 17 },
+    vitalsSectionTitle: { fontSize: 12, fontWeight: "800", color: t.colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 8 },
+    emptyLine: { fontSize: 13, color: t.colors.textMuted, paddingVertical: 4 },
+    slipThumbWrap: { alignSelf: "flex-start", borderRadius: t.radius.sm, overflow: "hidden", borderWidth: 1, borderColor: t.colors.border },
+    slipThumb: { width: 150, height: 200, backgroundColor: t.colors.surfaceTertiary },
+    slipThumbHint: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: "rgba(0,0,0,0.55)", paddingVertical: 4 },
+    slipThumbHintText: { fontSize: 11, fontWeight: "700", color: t.colors.onStatus },
+    flagRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: t.colors.divider },
+    flagRowText: { flex: 1, fontSize: 12, fontWeight: "600", color: t.colors.textPrimary, lineHeight: 17 },
+    visitRiskChip: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: t.colors.errorLight, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 3, marginTop: 8 },
+    visitRiskChipText: { fontSize: 11, fontWeight: "800", color: t.colors.errorText },
+    slipModalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", alignItems: "center", justifyContent: "center" },
+    slipFull: { width: "92%", height: "80%" },
+    slipCloseBtn: { position: "absolute", top: 48, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
     sectionTitle: { fontSize: 14, fontWeight: "800", color: t.colors.textPrimary, marginBottom: 10 },
     childLink: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: t.colors.surfaceSecondary, borderRadius: t.radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: t.colors.border },
     childLinkText: { flex: 1, fontSize: 13, fontWeight: "700", color: t.colors.textPrimary },

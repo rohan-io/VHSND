@@ -10,10 +10,18 @@ import {
 } from "@/src/types";
 
 // ---- Dashboard ----
+export interface CriticalPregnancySummary {
+  id: string;
+  full_name: string;
+  village: string;
+  gestational_age_label: string;
+  high_risk_reasons: string[];
+}
 export interface DashboardResponse {
   summary: Record<string, number>;
   todays_alerts: AlertItem[];
   recent_pregnancies: PregnancyRecord[];
+  critical_pregnancies: CriticalPregnancySummary[];
   last_updated: string;
 }
 export const getDashboard = () => apiRequest<DashboardResponse>("/dashboard");
@@ -58,6 +66,9 @@ export const completeMaternalImm = (pid: string, immId: string, body: any = {}) 
     method: "POST",
     body,
   });
+
+export const markPmsmaAttended = (pid: string) =>
+  apiRequest<PregnancyRecord>(`/pregnancies/${pid}/pmsma/attend`, { method: "POST" });
 
 // ---- Children ----
 export interface ChildListParams {

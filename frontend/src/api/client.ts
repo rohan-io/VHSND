@@ -1,4 +1,9 @@
 import { storage } from "@/src/utils/storage";
+import { demoRequest } from "@/src/api/demoDb";
+
+// Standalone offline demo: when on, every request is served from a bundled local
+// SQLite dataset (src/api/demoDb.ts) and no network call is ever made.
+export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
 export const API_BASE_URL = `${BACKEND_URL}/api`;
@@ -44,6 +49,10 @@ export async function apiRequest<T = any>(
     timeoutMs?: number;
   } = {}
 ): Promise<T> {
+  if (DEMO_MODE) {
+    return demoRequest<T>(path.startsWith("/") ? path : `/${path}`, options);
+  }
+
   const token = await getAuthToken();
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 

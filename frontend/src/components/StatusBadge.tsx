@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
+import { statusLabel } from "@/src/i18n/strings";
 import type { Theme } from "@/src/constants/theme";
 
 interface StatusBadgeProps {
@@ -15,6 +17,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   testID,
 }) => {
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
   const norm = status?.toLowerCase() || "";
 
@@ -79,7 +82,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         style={[styles.dot, { backgroundColor: isSolid ? solidFg : fg }]}
       />
       <Text style={[styles.text, { color: isSolid ? solidFg : fg }]}>
-        {status}
+        {statusLabel(status, tr)}
       </Text>
     </View>
   );

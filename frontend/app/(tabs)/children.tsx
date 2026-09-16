@@ -14,22 +14,23 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context/ThemeContext";
+import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { Header } from "@/src/components/Header";
 import { LoadError } from "@/src/components/LoadError";
 import { listChildren } from "@/src/api/mch";
 import { ChildRecord } from "@/src/types";
 
-const FILTERS = [
-  { key: "All", label: "All" },
-  { key: "Male", label: "Boys" },
-  { key: "Female", label: "Girls" },
-];
-
 export default function ChildrenListScreen() {
   const router = useRouter();
   const t = useTheme();
+  const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const FILTERS = [
+    { key: "All", label: tr.childrenList.filterAll },
+    { key: "Male", label: tr.childrenList.filterBoys },
+    { key: "Female", label: tr.childrenList.filterGirls },
+  ];
   const [items, setItems] = useState<ChildRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -78,11 +79,11 @@ export default function ChildrenListScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1}>{item.child_name}</Text>
-            <Text style={styles.sub} numberOfLines={1}>C/o {item.mother_name} • {item.age_label}</Text>
+            <Text style={styles.sub} numberOfLines={2}>{tr.childrenList.careOf} {item.mother_name} • {item.age_label}</Text>
           </View>
           {st && st.overdue > 0 ? (
             <View style={styles.overduePill}>
-              <Text style={styles.overdueText}>{st.overdue} overdue</Text>
+              <Text style={styles.overdueText}>{st.overdue} {tr.childrenList.overdueSuffix}</Text>
             </View>
           ) : null}
         </View>
@@ -91,7 +92,7 @@ export default function ChildrenListScreen() {
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: progressColor }]} />
           </View>
-          <Text style={styles.progressText}>{st?.completed ?? 0}/{st?.total ?? 0} vaccines</Text>
+          <Text style={styles.progressText}>{st?.completed ?? 0}/{st?.total ?? 0} {tr.childrenList.vaccinesSuffix}</Text>
         </View>
 
         <View style={styles.cardMeta}>
@@ -101,7 +102,7 @@ export default function ChildrenListScreen() {
           </View>
           <View style={styles.metaItem}>
             <Ionicons name="scale-outline" size={13} color={t.colors.textSecondary} />
-            <Text style={styles.metaText}>{item.birth_weight} kg birth wt</Text>
+            <Text style={styles.metaText}>{item.birth_weight} kg {tr.childrenList.birthWt}</Text>
           </View>
           <Text style={styles.childId}>{item.child_id}</Text>
         </View>
@@ -111,7 +112,7 @@ export default function ChildrenListScreen() {
 
   return (
     <View style={styles.root}>
-      <Header title="Child Registry" showOfflineToggle />
+      <Header title={tr.childrenList.title} showOfflineToggle />
 
       <View style={styles.stickyHeader}>
         <View style={styles.searchBox}>
@@ -119,7 +120,7 @@ export default function ChildrenListScreen() {
           <TextInput
             testID="child-search-input"
             style={styles.searchInput}
-            placeholder="Search child, mother, ID, village…"
+            placeholder={tr.childrenList.searchPlaceholder}
             placeholderTextColor={t.colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -157,31 +158,31 @@ export default function ChildrenListScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={<Text style={styles.countText}>{total} children registered</Text>}
+          ListHeaderComponent={<Text style={styles.countText}>{total} {tr.childrenList.countRegistered}</Text>}
           ListEmptyComponent={
             search.trim() || filter !== "All" ? (
               <View style={styles.centerFill}>
                 <Ionicons name="search-outline" size={40} color={t.colors.textMuted} />
-                <Text style={styles.emptyText}>No children match this search or filter.</Text>
+                <Text style={styles.emptyText}>{tr.childrenList.noMatch}</Text>
                 <Pressable
                   testID="children-empty-clear"
                   onPress={() => { setSearch(""); setFilter("All"); load("", "All"); }}
                   style={styles.emptyBtn}
                 >
-                  <Text style={styles.emptyBtnText}>Clear search & filters</Text>
+                  <Text style={styles.emptyBtnText}>{tr.childrenList.clearFilters}</Text>
                 </Pressable>
               </View>
             ) : (
               <View style={styles.centerFill}>
                 <Ionicons name="clipboard-outline" size={40} color={t.colors.textMuted} />
-                <Text style={styles.emptyText}>No children registered yet.</Text>
+                <Text style={styles.emptyText}>{tr.childrenList.noneYet}</Text>
                 <Pressable
                   testID="children-empty-register"
                   onPress={() => router.push("/child/register")}
                   style={styles.emptyBtn}
                 >
                   <Ionicons name="add" size={16} color={t.colors.onBrand} />
-                  <Text style={styles.emptyBtnText}>Register a child</Text>
+                  <Text style={styles.emptyBtnText}>{tr.childrenList.registerOne}</Text>
                 </Pressable>
               </View>
             )

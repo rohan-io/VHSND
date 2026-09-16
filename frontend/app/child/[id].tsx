@@ -20,6 +20,8 @@ import { LoadError } from "@/src/components/LoadError";
 import { useArmConfirm } from "@/src/hooks/use-arm-confirm";
 import { getChild, completeChildImm } from "@/src/api/mch";
 import { ChildImmunization, ChildRecord, PregnancyRecord } from "@/src/types";
+import { useAuth } from "@/src/context/AuthContext";
+import { isAdmin } from "@/src/utils/roles";
 
 const FILTERS = ["All", "Due", "Overdue", "Completed", "Upcoming"];
 
@@ -28,6 +30,9 @@ export default function ChildDetailScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  // Admin role is monitor/escalate/notify only — no write action here.
+  const readOnly = isAdmin(user);
 
   const [child, setChild] = useState<ChildRecord | null>(null);
   const [imms, setImms] = useState<ChildImmunization[]>([]);
@@ -56,7 +61,7 @@ export default function ChildDetailScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const markDone = async (immId: string) => {
-    if (!id) return;
+    if (!id || readOnly) return; // point-of-action guard
     setBusyId(immId);
     try {
       await completeChildImm(id, immId);
@@ -166,7 +171,7 @@ export default function ChildDetailScreen() {
                 </View>
                 <StatusBadge status={im.status} />
               </View>
-              {im.status !== "Completed" && im.status !== "Upcoming" && (
+              {im.status !== "Completed" && im.status !== "Upcoming" && !readOnly && (
                 <Pressable
                   testID={`mark-child-imm-${im.id}`}
                   onPress={() => { if (confirm(im.id)) markDone(im.id); }}

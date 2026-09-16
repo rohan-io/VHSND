@@ -4,7 +4,7 @@
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "frontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,11 +14,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/app-icon-foreground.png",
+        "backgroundColor": "#B23F2E"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.anctrackerapp.gneoey"
+      "package": "com.emergent.anctrackerapp.gneoey.v2"
     },
     "web": {
       "name": "ମା ଓ ଶିଶୁ ସୁରକ୍ଷା",
@@ -36,10 +36,24 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000"
         }
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app uses your photos so you can attach a health slip to a pregnancy record.",
+          "cameraPermission": "The app uses the camera so you can photograph a health slip for a pregnancy record."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7118d2ff-bab1-4c8e-baa5-1bd633b50455"
+      }
     }
   }
 }
