@@ -10,7 +10,10 @@ export default function ReferralPage() {
       pageTitle='Referrals'
       pageDescription='Referral of beneficiaries to higher-level facilities'
       pageHeaderAction={
-        <Button render={<Link href='/dashboard/referral/new'>New Referral</Link>} />
+        <Button
+          nativeButton={false}
+          render={<Link href='/dashboard/referral/new'>New Referral</Link>}
+        />
       }
     >
       <ReferralTable data={REFERRALS} />
