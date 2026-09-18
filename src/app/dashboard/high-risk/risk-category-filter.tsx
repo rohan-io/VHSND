@@ -23,7 +23,12 @@ export function RiskCategoryFilter({
   return (
     <div className='flex flex-wrap gap-2'>
       {options.map((option) => (
-        <button key={option} type='button' onClick={() => onChange(option)}>
+        <button
+          key={option}
+          type='button'
+          className='inline-flex min-h-11 items-center'
+          onClick={() => onChange(option)}
+        >
           <Badge variant={active === option ? 'default' : 'outline'}>{option}</Badge>
         </button>
       ))}
