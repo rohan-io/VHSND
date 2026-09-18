@@ -20,32 +20,23 @@ export const metadata: Metadata = {
     ? { metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL) }
     : {}),
   title: {
-    default: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
-    template: '%s | Shadcn Dashboard'
+    default: 'VHSND Supervisor Dashboard',
+    template: '%s | VHSND Supervisor Dashboard'
   },
   description:
-    'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
+    'Desktop dashboard for the VHSND pilot demo Supervisor/Admin role: due-list, ANM attendance, miss-report, due-report, high-risk pregnancy tracking, and referrals.',
   openGraph: {
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    title: 'VHSND Supervisor Dashboard',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
-    siteName: 'Shadcn Dashboard',
-    type: 'website',
-    images: [
-      {
-        url: '/shadcn-dashboard.png',
-        width: 3200,
-        height: 1600,
-        alt: 'Shadcn Dashboard overview page'
-      }
-    ]
+      'Desktop dashboard for the VHSND pilot demo Supervisor/Admin role: due-list, ANM attendance, miss-report, due-report, high-risk pregnancy tracking, and referrals.',
+    siteName: 'VHSND Supervisor Dashboard',
+    type: 'website'
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'Shadcn Dashboard - Next.js Admin Dashboard Template',
+    card: 'summary',
+    title: 'VHSND Supervisor Dashboard',
     description:
-      'Free, open source admin dashboard starter built with Next.js 16, shadcn/ui, Tailwind CSS, and TypeScript.',
-    images: ['/shadcn-dashboard.png']
+      'Desktop dashboard for the VHSND pilot demo Supervisor/Admin role: due-list, ANM attendance, miss-report, due-report, high-risk pregnancy tracking, and referrals.'
   }
 };
 
