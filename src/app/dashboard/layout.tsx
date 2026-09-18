@@ -9,8 +9,9 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
-  title: 'Next Shadcn Dashboard Starter',
-  description: 'Basic dashboard with Next.js and Shadcn',
+  title: 'Dashboard',
+  description:
+    'Desktop dashboard for the VHSND pilot demo Supervisor/Admin role: due-list, ANM attendance, miss-report, due-report, high-risk pregnancy tracking, and referrals.',
   robots: {
     index: false,
     follow: false
