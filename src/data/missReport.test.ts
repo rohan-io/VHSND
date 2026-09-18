@@ -59,7 +59,7 @@ describe('filterMissedBeneficiaries', () => {
 
   it('treats a missing attendance record for a past session as missed', () => {
     const result = filterMissedBeneficiaries(sessions, [], TODAY);
-    expect(result.map((r) => r.beneficiaryId).sort()).toEqual(['BEN-2026-500', 'BEN-2026-501']);
+    expect(result.map((r) => r.beneficiaryId).toSorted()).toEqual(['BEN-2026-500', 'BEN-2026-501']);
   });
 
   it('ignores future sessions entirely', () => {
