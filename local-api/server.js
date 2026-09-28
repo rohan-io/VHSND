@@ -326,8 +326,13 @@ app.patch("/api/high-risk/:id", (req, res) => {
   if (!existing) {
     // Upsert-create: no relational row yet — e.g. a mobile-only high-risk
     // mother (union-merged into admin-web's view, see its adapters.ts).
-    // Default reasons from her mobile pregnancy record when not provided.
+    // beneficiary_id must still exist in one of the two stores, though —
+    // this isn't a way to create a flag for an id nobody has ever heard of.
+    const beneficiaryRow = db.prepare("SELECT id FROM beneficiaries WHERE id = ?").get(beneficiaryId);
     const pregnancy = findMobilePregnancy(beneficiaryId);
+    if (!beneficiaryRow && !pregnancy) return notFound(res, "Beneficiary");
+
+    // Default reasons from her mobile pregnancy record when not provided.
     const created = {
       beneficiary_id: beneficiaryId,
       risk_category: req.body.risk_category || "Mobile-flagged",

@@ -183,6 +183,11 @@ async function main() {
       "high-risk PATCH should have acknowledged her HIGH_RISK_PREGNANCY/CRITICAL_PREGNANCY_ESCALATION alerts"
     );
 
+    // the upsert path still rejects a beneficiary_id nobody has ever heard
+    // of — it's not a way to create a flag out of thin air
+    res = await patch("/api/high-risk/BEN-DOES-NOT-EXIST-ANYWHERE", { status: "ACKNOWLEDGED" });
+    assert.strictEqual(res.status, 404, "high-risk PATCH should 404 for a beneficiary_id in neither store");
+
     console.log("All smoke tests passed.");
   } finally {
     await new Promise((resolve) => {

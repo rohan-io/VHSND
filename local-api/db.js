@@ -3,11 +3,13 @@ const Database = require("better-sqlite3");
 
 const db = new Database(process.env.DB_FILE || path.join(__dirname, "data.sqlite"));
 db.pragma("journal_mode = WAL");
-// referrals/high_risk_flags declare beneficiary_id REFERENCES beneficiaries(id)
-// for documentation, but beneficiary_id now legitimately comes from the
-// mobile pregnancies store too (see server.js's cross-store bridges) — a
-// real FK there would reject those, so enforcement stays off explicitly.
-db.pragma("foreign_keys = OFF");
+// FK enforcement stays on for everything except referrals/high_risk_flags —
+// their beneficiary_id legitimately comes from the mobile pregnancies store
+// too (see server.js's cross-store bridges), which a real FK to the
+// relational beneficiaries table would reject. Those two tables simply don't
+// declare that FK (below) rather than disabling enforcement globally; the
+// app-level existence checks in server.js cover both stores instead.
+db.pragma("foreign_keys = ON");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS villages (
@@ -76,7 +78,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS referrals (
     id TEXT PRIMARY KEY,
-    beneficiary_id TEXT NOT NULL REFERENCES beneficiaries(id),
+    beneficiary_id TEXT NOT NULL,
     beneficiary_name TEXT,
     facility TEXT NOT NULL,
     reason TEXT NOT NULL,
@@ -87,7 +89,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS high_risk_flags (
-    beneficiary_id TEXT PRIMARY KEY REFERENCES beneficiaries(id),
+    beneficiary_id TEXT PRIMARY KEY,
     risk_category TEXT,
     reasons TEXT NOT NULL DEFAULT '[]',
     auto_flags TEXT NOT NULL DEFAULT '[]',
@@ -106,6 +108,55 @@ db.exec(`
     created_at TEXT NOT NULL
   );
 `);
+
+// One-time migration for a data.sqlite created before this fix: referrals
+// and high_risk_flags used to declare `REFERENCES beneficiaries(id)`.
+// CREATE TABLE IF NOT EXISTS above only handles fresh DBs, so an existing
+// file needs the standard SQLite rebuild-in-place (there's no ALTER TABLE
+// DROP CONSTRAINT) — rename, recreate without the FK, copy rows, drop.
+// foreign_keys is toggled off only for this transaction, per SQLite's own
+// guidance for schema changes, then restored.
+function dropBeneficiaryForeignKey(table, createSql) {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(table);
+  if (!row || !row.sql.includes("REFERENCES beneficiaries")) return;
+
+  db.pragma("foreign_keys = OFF");
+  db.transaction(() => {
+    db.exec(`ALTER TABLE ${table} RENAME TO ${table}_old`);
+    db.exec(createSql);
+    db.exec(`INSERT INTO ${table} SELECT * FROM ${table}_old`);
+    db.exec(`DROP TABLE ${table}_old`);
+  })();
+  db.pragma("foreign_keys = ON");
+}
+
+dropBeneficiaryForeignKey(
+  "referrals",
+  `CREATE TABLE referrals (
+    id TEXT PRIMARY KEY,
+    beneficiary_id TEXT NOT NULL,
+    beneficiary_name TEXT,
+    facility TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    date TEXT NOT NULL,
+    follow_up_status TEXT NOT NULL DEFAULT 'Pending',
+    notes TEXT,
+    created_at TEXT NOT NULL
+  )`
+);
+
+dropBeneficiaryForeignKey(
+  "high_risk_flags",
+  `CREATE TABLE high_risk_flags (
+    beneficiary_id TEXT PRIMARY KEY,
+    risk_category TEXT,
+    reasons TEXT NOT NULL DEFAULT '[]',
+    auto_flags TEXT NOT NULL DEFAULT '[]',
+    manual_flags TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    updated_at TEXT NOT NULL
+  )`
+);
 
 // ---------------------------------------------------------------------------
 // seed data — copied by value from frontend/src/api/demoDb.ts (villages/
