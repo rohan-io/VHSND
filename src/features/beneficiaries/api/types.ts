@@ -1,22 +1,18 @@
 // Raw local-api response shapes (snake_case, per local-api/README.md).
-export interface ApiBeneficiary {
-  id: string;
-  name: string;
-  husband_name: string | null;
-  age: number | null;
-  village: string;
-  block: string | null;
-  anm_id: string | null;
-  anm_name: string | null;
-}
-
 export interface ApiPregnancy {
   id: string;
   beneficiary_id: string;
+  full_name: string;
+  husband_name: string;
+  age: number;
+  village: string;
   trimester: number;
   gestational_age_label: string;
   is_high_risk: boolean;
   high_risk_reasons: string[];
+  assigned_worker_id: string;
+  assigned_worker_name: string;
+  status: string;
 }
 
 export interface ApiHighRiskFlag {
