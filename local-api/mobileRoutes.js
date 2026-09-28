@@ -4,6 +4,7 @@
 // swap for offline demo mode. These paths supersede local-api's earlier
 // admin-web-shaped /pregnancies and /children routes (see README).
 const express = require("express");
+const db = require("./db");
 const mobileDb = require("./mobileDb");
 const { assessRisk } = require("./riskAssessment");
 const { pmsmaStatus, isActivePregnancy } = require("./pmsma");
@@ -23,11 +24,89 @@ router.post("/auth/login", (req, res) => {
   }
 });
 router.post("/auth/logout", (req, res) => res.json({}));
+router.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// Rewrites reference fields (pregnancy_id/mother_id/child_id) that point at a
+// client-generated temp offline id (see addOfflinePlaceholderId below) to the
+// real server id it resolved to earlier in THIS batch, so e.g. an offline
+// ANC visit for a mother registered offline in the same sync just works.
+function resolveTempIds(payload, idMap) {
+  if (!payload || typeof payload !== "object") return payload;
+  const out = { ...payload };
+  for (const key of ["pregnancy_id", "mother_id", "child_id"]) {
+    if (out[key] && idMap[out[key]]) out[key] = idMap[out[key]];
+  }
+  return out;
+}
+
+// Runs one transaction's writes (the entity create/update AND the
+// sync_transactions idempotency record) as a single atomic SQLite
+// transaction, so a throw partway through (e.g. the pregnancy insert
+// succeeds but raiseCriticalAlerts then fails) leaves nothing half-written —
+// a retry with the same client_txn_id starts clean instead of creating a
+// duplicate pregnancy alongside an orphaned one.
+const withDbTransaction = db.transaction((fn) => fn());
+
 router.post("/sync", (req, res) => {
-  res.json({
-    sync_time: new Date().toISOString(),
-    total_processed: req.body?.transactions?.length || (Array.isArray(req.body) ? req.body.length : 0),
+  const transactions = Array.isArray(req.body?.transactions) ? req.body.transactions : [];
+  const idMap = {}; // client temp offline id -> real server id, scoped to this batch
+
+  const results = transactions.map((txn) => {
+    const { client_txn_id, entity_type, payload } = txn || {};
+    if (!client_txn_id) return { client_txn_id: client_txn_id || null, status: "failed", error: "Missing client_txn_id" };
+
+    // Only a previously-APPLIED transaction is a true duplicate. One that
+    // previously failed must be retried, or the client drops it from its
+    // queue (it only removes applied/duplicate items) and the record is
+    // lost for good.
+    const already = one("sync_transactions", client_txn_id);
+    if (already && already.status === "applied") {
+      return { client_txn_id, status: "duplicate", server_id: already.server_id, entity_type: already.entity_type };
+    }
+
+    try {
+      const serverId = withDbTransaction(() => {
+        const resolved = resolveTempIds(payload, idMap);
+        let id;
+        switch (entity_type) {
+          case "pregnancy": id = applyCreatePregnancy(resolved).id; break;
+          case "child": id = applyCreateChild(resolved).id; break;
+          case "anc_visit": {
+            const v = applyCreateVisit(resolved.pregnancy_id, resolved);
+            if (v.error) throw new Error(v.error);
+            id = v.id;
+            break;
+          }
+          case "maternal_imm": {
+            const r = applyCompleteMaternalImm(resolved.immunization_id || resolved.id, resolved);
+            if (r.error) throw new Error(r.error);
+            id = r.id;
+            break;
+          }
+          case "child_imm": {
+            const r = applyCompleteChildImm(resolved.immunization_id || resolved.id, resolved);
+            if (r.error) throw new Error(r.error);
+            id = r.id;
+            break;
+          }
+          default:
+            throw new Error(`Unknown entity_type: ${entity_type}`);
+        }
+        put("sync_transactions", client_txn_id, { client_txn_id, entity_type, server_id: id, status: "applied", processed_at: new Date().toISOString() });
+        return id;
+      });
+      if ((entity_type === "pregnancy" || entity_type === "child") && payload?.id) idMap[payload.id] = serverId;
+      return { client_txn_id, status: "applied", server_id: serverId, entity_type };
+    } catch (err) {
+      // Not wrapped in the same DB transaction — there's nothing to roll
+      // back for a single informational insert, and this must survive even
+      // though the entity-creating transaction above just rolled back.
+      put("sync_transactions", client_txn_id, { client_txn_id, entity_type, status: "failed", error: err.message, processed_at: new Date().toISOString() });
+      return { client_txn_id, status: "failed", error: err.message, entity_type };
+    }
   });
+
+  res.json({ sync_time: new Date().toISOString(), total_processed: results.length, results });
 });
 
 // ---------------------------------------------------------------------------
@@ -115,14 +194,21 @@ router.get("/pregnancies/:id", (req, res) => {
   });
 });
 
-router.post("/pregnancies", (req, res) => {
-  const b = req.body || {};
+// id/beneficiary_id helpers: a client-generated offline-queue id (see
+// OfflineSyncContext's addOfflinePlaceholderId) must never become the
+// permanent id — always mint a fresh real one for those, but still respect
+// an explicitly-passed real id from any other caller.
+const isOfflineTempId = (id) => typeof id === "string" && id.startsWith("OFFLINE-");
+const freshId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function applyCreatePregnancy(body) {
+  const b = body || {};
   const g = b.lmp ? gestational(b.lmp) : null;
   const risk = assessRisk(b);
   const p = {
     ...b,
-    id: b.id || `PREG-LOCAL-${Date.now()}`,
-    beneficiary_id: b.beneficiary_id || `BEN-LOCAL-${Date.now()}`,
+    id: b.id && !isOfflineTempId(b.id) ? b.id : freshId("PREG-LOCAL"),
+    beneficiary_id: b.beneficiary_id && !isOfflineTempId(b.beneficiary_id) ? b.beneficiary_id : freshId("BEN-LOCAL"),
     ...(g || {}),
     is_high_risk: risk.is_critical,
     high_risk_reasons: risk.reasons,
@@ -133,13 +219,13 @@ router.post("/pregnancies", (req, res) => {
   };
   put("pregnancies", p.id, p);
   if (risk.is_critical) raiseCriticalAlerts(p);
-  res.status(201).json(p);
-});
+  return p;
+}
 
-router.post("/pregnancies/:id/visits", (req, res) => {
-  const b = req.body || {};
-  const p = one("pregnancies", req.params.id);
-  if (!p) return res.status(404).json({ detail: "Pregnancy not found" });
+function applyCreateVisit(pregnancyId, body) {
+  const b = body || {};
+  const p = one("pregnancies", pregnancyId);
+  if (!p) return { error: "Pregnancy not found" };
   const existing = all("anc_visits").filter((x) => x.pregnancy_id === p.id);
 
   const mergedFactors = {
@@ -158,7 +244,7 @@ router.post("/pregnancies/:id/visits", (req, res) => {
 
   const v = {
     ...b,
-    id: b.id || `ANC-LOCAL-${Date.now()}`,
+    id: b.id && !isOfflineTempId(b.id) ? b.id : freshId("ANC-LOCAL"),
     pregnancy_id: p.id, beneficiary_id: p.beneficiary_id, mother_name: p.full_name,
     visit_number: b.visit_number || existing.length + 1,
     gestational_weeks_at_visit: b.gestational_weeks_at_visit || p.gestational_weeks,
@@ -179,13 +265,29 @@ router.post("/pregnancies/:id/visits", (req, res) => {
   put("pregnancies", p.id, updatedP);
   if (risk.is_critical && updatedP.status !== "delivered") raiseCriticalAlerts(updatedP);
 
+  return v;
+}
+
+function applyCompleteMaternalImm(immId, body) {
+  const i = one("maternal_immunizations", immId);
+  if (!i) return { error: "Immunization not found" };
+  return put("maternal_immunizations", i.id, { ...i, administration_date: dateOnly(0), status: "Completed", ...(body || {}) });
+}
+
+router.post("/pregnancies", (req, res) => {
+  res.status(201).json(applyCreatePregnancy(req.body));
+});
+
+router.post("/pregnancies/:id/visits", (req, res) => {
+  const v = applyCreateVisit(req.params.id, req.body);
+  if (v.error) return res.status(404).json({ detail: v.error });
   res.status(201).json(v);
 });
 
 router.post("/pregnancies/:id/immunizations/:immId/complete", (req, res) => {
-  const i = one("maternal_immunizations", req.params.immId);
-  if (!i) return res.status(404).json({ detail: "Immunization not found" });
-  res.json(put("maternal_immunizations", i.id, { ...i, administration_date: dateOnly(0), status: "Completed", ...(req.body || {}) }));
+  const r = applyCompleteMaternalImm(req.params.immId, req.body);
+  if (r.error) return res.status(404).json({ detail: r.error });
+  res.json(r);
 });
 
 router.post("/pregnancies/:id/pmsma/attend", (req, res) => {
@@ -209,17 +311,22 @@ router.get("/children", (req, res) => {
   res.json({ total: rows.length, items: rows });
 });
 
-router.post("/children", (req, res) => {
-  const b = req.body || {};
+function applyCreateChild(body) {
+  const b = body || {};
+  const id = b.id && !isOfflineTempId(b.id) ? b.id : freshId("CHILD-LOCAL");
   const c = {
     ...b,
-    id: b.id || `CHILD-LOCAL-${Date.now()}`,
-    child_id: b.child_id || `CHILD-LOCAL-${Date.now()}`,
+    id,
+    child_id: b.child_id && !isOfflineTempId(b.child_id) ? b.child_id : id,
     age_days: 0, age_label: "Newborn",
     vaccine_stats: b.vaccine_stats || { total: 0, completed: 0, overdue: 0, due: 0, progress_percent: 0 },
     created_at: new Date().toISOString(),
   };
-  res.status(201).json(put("children", c.id, c));
+  return put("children", c.id, c);
+}
+
+router.post("/children", (req, res) => {
+  res.status(201).json(applyCreateChild(req.body));
 });
 
 router.get("/children/:id", (req, res) => {
@@ -232,10 +339,16 @@ router.get("/children/:id", (req, res) => {
   });
 });
 
+function applyCompleteChildImm(immId, body) {
+  const i = one("child_immunizations", immId);
+  if (!i) return { error: "Immunization not found" };
+  return put("child_immunizations", i.id, { ...i, administered_date: dateOnly(0), status: "Completed", ...(body || {}) });
+}
+
 router.post("/children/:id/immunizations/:immId/complete", (req, res) => {
-  const i = one("child_immunizations", req.params.immId);
-  if (!i) return res.status(404).json({ detail: "Immunization not found" });
-  res.json(put("child_immunizations", i.id, { ...i, administered_date: dateOnly(0), status: "Completed", ...(req.body || {}) }));
+  const r = applyCompleteChildImm(req.params.immId, req.body);
+  if (r.error) return res.status(404).json({ detail: r.error });
+  res.json(r);
 });
 
 router.post("/children/:id/immunizations/:immId/reschedule", (req, res) => {
