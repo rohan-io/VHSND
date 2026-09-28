@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const db = require("./db");
+const mobileDb = require("./mobileDb");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -16,6 +17,63 @@ app.use((req, res, next) => {
 const now = () => new Date().toISOString();
 const notFound = (res, what) => res.status(404).json({ error: `${what} not found` });
 const parseArr = (s) => (s ? JSON.parse(s) : []);
+
+// ---------------------------------------------------------------------------
+// Cross-store bridges: the mobile store (mobile_records, via mobileDb.js) is
+// the source of truth for mothers/alerts; these two relational routes
+// (referrals, high-risk) reach into it in-process — same server, same DB
+// connection, no HTTP round-trip — so admin actions become visible on the
+// mobile-facing endpoints. Both are best-effort: a missing mobile pregnancy
+// (shouldn't happen once admin only ever offers real pregnancy-backed
+// beneficiary_ids, but cheap to guard) logs and moves on rather than failing
+// the admin action that triggered it.
+// ---------------------------------------------------------------------------
+function findMobilePregnancy(beneficiaryId) {
+  return mobileDb.all("pregnancies").find((p) => p.beneficiary_id === beneficiaryId);
+}
+
+function createReferralNotification(referral) {
+  const pregnancy = findMobilePregnancy(referral.beneficiary_id);
+  if (!pregnancy) {
+    console.log(`[referral] no mobile pregnancy found for ${referral.beneficiary_id}, skipping notification`);
+    return;
+  }
+  const notifId = `NOTIF-REF-${referral.id}`;
+  mobileDb.put("notifications", notifId, {
+    id: notifId,
+    title: "New Referral",
+    message: `Referral: ${referral.beneficiary_name} referred to ${referral.facility} - ${referral.reason}`,
+    priority: "HIGH",
+    category: "Referral",
+    beneficiary_name: referral.beneficiary_name,
+    created_at: now(),
+    is_read: false,
+    target_user_id: pregnancy.assigned_worker_id,
+  });
+}
+
+function cascadeHighRiskAcknowledgement(beneficiaryId, status) {
+  if (status !== "ACKNOWLEDGED") return;
+  const pregnancy = findMobilePregnancy(beneficiaryId);
+  if (!pregnancy) {
+    console.log(`[high-risk] no mobile pregnancy found for ${beneficiaryId}, skipping alert acknowledgement`);
+    return;
+  }
+  const matching = mobileDb
+    .all("alerts")
+    .filter(
+      (a) =>
+        a.related_entity_type === "pregnancy" &&
+        a.related_entity_id === pregnancy.id &&
+        a.status === "ACTIVE" &&
+        (a.alert_type === "HIGH_RISK_PREGNANCY" || a.alert_type === "CRITICAL_PREGNANCY_ESCALATION")
+    );
+  if (matching.length === 0) {
+    console.log(`[high-risk] no active mobile alerts matched pregnancy ${pregnancy.id}`);
+    return;
+  }
+  for (const a of matching) mobileDb.put("alerts", a.id, { ...a, status: "ACKNOWLEDGED" });
+}
 
 // ---------------------------------------------------------------------------
 // beneficiaries
@@ -192,13 +250,16 @@ app.post("/api/referrals", (req, res) => {
   if (!beneficiary_id || !facility || !reason || !date)
     return res.status(400).json({ error: "beneficiary_id, facility, reason and date are required" });
 
+  // beneficiary_id may only exist in the mobile store now (any pregnancy,
+  // not just the 16 seeded relational rows) — accept either.
   const beneficiary = db.prepare("SELECT id, name FROM beneficiaries WHERE id = ?").get(beneficiary_id);
-  if (!beneficiary) return res.status(400).json({ error: "beneficiary_id does not exist" });
+  const pregnancy = findMobilePregnancy(beneficiary_id);
+  if (!beneficiary && !pregnancy) return res.status(400).json({ error: "beneficiary_id does not exist" });
 
   const row = {
     id: req.body.id || `REF-LOCAL-${Date.now()}`,
     beneficiary_id,
-    beneficiary_name: req.body.beneficiary_name || beneficiary.name,
+    beneficiary_name: req.body.beneficiary_name || beneficiary?.name || pregnancy?.full_name || beneficiary_id,
     facility,
     reason,
     date,
@@ -210,6 +271,7 @@ app.post("/api/referrals", (req, res) => {
     INSERT INTO referrals (id, beneficiary_id, beneficiary_name, facility, reason, date, follow_up_status, notes, created_at)
     VALUES (@id, @beneficiary_id, @beneficiary_name, @facility, @reason, @date, @follow_up_status, @notes, @created_at)
   `).run(row);
+  createReferralNotification(row);
   res.status(201).json(row);
 });
 
@@ -235,9 +297,13 @@ const serializeHighRisk = (row) => ({
 });
 
 app.get("/api/high-risk", (req, res) => {
+  // LEFT JOIN: a high_risk_flags row may now exist for a beneficiary_id with
+  // no relational beneficiaries row at all (any mobile-only high-risk
+  // mother, upserted via PATCH below) — an INNER JOIN would silently drop
+  // her from this list, breaking admin-web's join-by-beneficiary_id lookup.
   const rows = db.prepare(`
     SELECT h.*, b.name, b.village, b.age, b.anm_id, b.anm_name
-    FROM high_risk_flags h JOIN beneficiaries b ON b.id = h.beneficiary_id
+    FROM high_risk_flags h LEFT JOIN beneficiaries b ON b.id = h.beneficiary_id
     ORDER BY h.updated_at DESC
   `).all();
   res.json(rows.map(serializeHighRisk));
@@ -246,7 +312,7 @@ app.get("/api/high-risk", (req, res) => {
 app.get("/api/high-risk/:id", (req, res) => {
   const row = db.prepare(`
     SELECT h.*, b.name, b.village, b.age, b.anm_id, b.anm_name
-    FROM high_risk_flags h JOIN beneficiaries b ON b.id = h.beneficiary_id
+    FROM high_risk_flags h LEFT JOIN beneficiaries b ON b.id = h.beneficiary_id
     WHERE h.beneficiary_id = ?
   `).get(req.params.id);
   if (!row) return notFound(res, "High-risk record");
@@ -254,8 +320,30 @@ app.get("/api/high-risk/:id", (req, res) => {
 });
 
 app.patch("/api/high-risk/:id", (req, res) => {
-  const existing = db.prepare("SELECT * FROM high_risk_flags WHERE beneficiary_id = ?").get(req.params.id);
-  if (!existing) return notFound(res, "High-risk record");
+  const beneficiaryId = req.params.id;
+  const existing = db.prepare("SELECT * FROM high_risk_flags WHERE beneficiary_id = ?").get(beneficiaryId);
+
+  if (!existing) {
+    // Upsert-create: no relational row yet — e.g. a mobile-only high-risk
+    // mother (union-merged into admin-web's view, see its adapters.ts).
+    // Default reasons from her mobile pregnancy record when not provided.
+    const pregnancy = findMobilePregnancy(beneficiaryId);
+    const created = {
+      beneficiary_id: beneficiaryId,
+      risk_category: req.body.risk_category || "Mobile-flagged",
+      reasons: JSON.stringify(req.body.reasons || pregnancy?.high_risk_reasons || []),
+      auto_flags: JSON.stringify(req.body.auto_flags || pregnancy?.high_risk_reasons || []),
+      manual_flags: JSON.stringify(req.body.manual_flags || []),
+      status: req.body.status || "ACTIVE",
+      updated_at: now(),
+    };
+    db.prepare(`
+      INSERT INTO high_risk_flags (beneficiary_id, risk_category, reasons, auto_flags, manual_flags, status, updated_at)
+      VALUES (@beneficiary_id, @risk_category, @reasons, @auto_flags, @manual_flags, @status, @updated_at)
+    `).run(created);
+    cascadeHighRiskAcknowledgement(beneficiaryId, created.status);
+    return res.status(201).json(serializeHighRisk(created));
+  }
 
   const updated = {
     ...existing,
@@ -271,6 +359,7 @@ app.patch("/api/high-risk/:id", (req, res) => {
       auto_flags=@auto_flags, manual_flags=@manual_flags, status=@status, updated_at=@updated_at
     WHERE beneficiary_id=@beneficiary_id
   `).run(updated);
+  cascadeHighRiskAcknowledgement(beneficiaryId, updated.status);
   res.json(serializeHighRisk(updated));
 });
 

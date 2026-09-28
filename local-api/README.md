@@ -68,11 +68,11 @@ see the data section above for why they don't share a schema yet.
 | POST | `/attendance` | ANM check-in; requires `session_id` (must exist), `anm_id` |
 | PATCH | `/attendance/:id` | status / check-in time |
 | GET | `/referrals` | |
-| POST | `/referrals` | requires `beneficiary_id` (must exist), `facility`, `reason`, `date` |
+| POST | `/referrals` | requires `beneficiary_id` (must exist — in `beneficiaries` OR as any mobile pregnancy's `beneficiary_id`), `facility`, `reason`, `date`. Also creates a `NOTIF-REF-*` notification in the mobile store for the pregnancy's `assigned_worker_id` (best-effort: logs and skips if no matching mobile pregnancy) |
 | PATCH | `/referrals/:id` | follow-up status / notes |
-| GET | `/high-risk` | beneficiary + flags joined |
+| GET | `/high-risk` | beneficiary + flags LEFT-joined (a row can exist with no relational `beneficiaries` match) |
 | GET | `/high-risk/:id` | keyed by beneficiary ID |
-| PATCH | `/high-risk/:id` | flags / status |
+| PATCH | `/high-risk/:id` | flags / status — **upserts**: creates the row if none exists yet (e.g. a mobile-only high-risk mother), defaulting reasons from her pregnancy record. Setting `status: "ACKNOWLEDGED"` also acknowledges her matching `HIGH_RISK_PREGNANCY`/`CRITICAL_PREGNANCY_ESCALATION` mobile alerts in-process (best-effort: logs and skips if no matching mobile pregnancy/alerts) |
 | GET | `/beneficiary-attendance` | optional `?session_id=` filter; per-beneficiary VHSND attendance (distinct from `/attendance`, which is the ANM's own check-in) |
 
 ### Mobile-app-shaped (Phase 2, `mobileRoutes.js`) — mirrors `demoDb.ts` 1:1

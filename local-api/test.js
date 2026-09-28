@@ -24,6 +24,7 @@ async function main() {
   const base = `http://localhost:${PORT}`;
   const get = (p) => fetch(base + p);
   const post = (p, body) => fetch(base + p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const patch = (p, body) => fetch(base + p, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
   try {
     // wait for server to come up
@@ -129,6 +130,58 @@ async function main() {
     res = await get("/api/health-workers/USR-HW-001/supervised-team");
     assert.strictEqual(res.status, 200);
     assert.strictEqual((await res.json()).supervisor.id, "USR-HW-001");
+
+    // --- cross-store bridges (admin <-> mobile): referrals and high-risk
+    // acknowledgement must reach beneficiary_ids that only exist in the
+    // mobile pregnancies collection, not just the 16 seeded relational rows.
+    res = await get("/api/pregnancies");
+    const allPregnancies = (await res.json()).items;
+    const mobileOnlyHighRisk = allPregnancies.find(
+      (p) => p.is_high_risk && !/^BEN-2026-50[0-9]$|^BEN-2026-51[0-5]$/.test(p.beneficiary_id)
+    );
+    assert.ok(mobileOnlyHighRisk, "expected at least one mobile-only high-risk pregnancy in the seed");
+
+    // referral for a mobile-only beneficiary_id: used to 400, must now work
+    res = await post("/api/referrals", {
+      beneficiary_id: mobileOnlyHighRisk.beneficiary_id,
+      facility: "CHC Sukinda",
+      reason: "Cross-store smoke test",
+      date: "2026-09-28",
+    });
+    assert.strictEqual(res.status, 201, "referral POST should accept a mobile-only beneficiary_id");
+    const referral = await res.json();
+
+    // ...and it should have created a notification for her assigned worker
+    res = await get("/api/notifications");
+    const notifications = (await res.json()).items;
+    const referralNotif = notifications.find((n) => n.id === `NOTIF-REF-${referral.id}`);
+    assert.ok(referralNotif, "expected a NOTIF-REF-* notification for the new referral");
+    assert.strictEqual(referralNotif.target_user_id, mobileOnlyHighRisk.assigned_worker_id);
+    assert.ok(referralNotif.message.includes(mobileOnlyHighRisk.full_name));
+
+    // high-risk PATCH for the same mobile-only beneficiary_id: no relational
+    // row exists yet, so this must upsert-create rather than 404
+    res = await patch(`/api/high-risk/${mobileOnlyHighRisk.beneficiary_id}`, { status: "ACKNOWLEDGED" });
+    assert.strictEqual(res.status, 201, "high-risk PATCH should upsert-create when no relational row exists");
+
+    res = await get("/api/high-risk");
+    const highRiskRows = await res.json();
+    assert.ok(
+      highRiskRows.some((h) => h.beneficiary_id === mobileOnlyHighRisk.beneficiary_id && h.status === "ACKNOWLEDGED"),
+      "the LEFT JOIN must not drop a high-risk row with no relational beneficiaries match"
+    );
+
+    // ...and it should have acknowledged her matching mobile alerts
+    res = await get("/api/alerts");
+    const alertsAfterAck = (await res.json()).items;
+    const herAlerts = alertsAfterAck.filter(
+      (a) => a.related_entity_type === "pregnancy" && a.related_entity_id === mobileOnlyHighRisk.id
+    );
+    assert.ok(herAlerts.length > 0, "expected at least one alert for this pregnancy");
+    assert.ok(
+      herAlerts.every((a) => a.alert_type !== "HIGH_RISK_PREGNANCY" && a.alert_type !== "CRITICAL_PREGNANCY_ESCALATION" || a.status === "ACKNOWLEDGED"),
+      "high-risk PATCH should have acknowledged her HIGH_RISK_PREGNANCY/CRITICAL_PREGNANCY_ESCALATION alerts"
+    );
 
     console.log("All smoke tests passed.");
   } finally {

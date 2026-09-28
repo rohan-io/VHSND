@@ -3,6 +3,11 @@ const Database = require("better-sqlite3");
 
 const db = new Database(process.env.DB_FILE || path.join(__dirname, "data.sqlite"));
 db.pragma("journal_mode = WAL");
+// referrals/high_risk_flags declare beneficiary_id REFERENCES beneficiaries(id)
+// for documentation, but beneficiary_id now legitimately comes from the
+// mobile pregnancies store too (see server.js's cross-store bridges) — a
+// real FK there would reject those, so enforcement stays off explicitly.
+db.pragma("foreign_keys = OFF");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS villages (
