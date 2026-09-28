@@ -1,0 +1,206 @@
+/* VHSND brand theme — ported 1:1 from frontend/src/constants/theme.ts (the
+   shipped mobile app's actual palette, not the stale design_guidelines.json —
+   see admin-web/docs/specs/2026-09-17-supervisor-web-dashboard-design.md §2).
+   Brick-red/maroon primary + deep leaf green secondary, deliberately distinct
+   from any political party palette (theme.ts's own note). Dark-mode surfaces
+   are true-neutral near-black, not brand-tinted — brand appears only on
+   accents, matching the mobile app's convention. --success/--warning/--info
+   are custom additions (shadcn ships no status-color set by default) and are
+   registered as Tailwind colors below so `bg-success`, `text-warning`, etc.
+   are available the same way `bg-primary` is. */
+[data-theme='vhsnd'] {
+  --background: oklch(0.9842 0.0034 247.8575);
+  --foreground: oklch(0.2077 0.0398 265.7549);
+  --card: oklch(1 0 89.8756);
+  --card-foreground: oklch(0.2077 0.0398 265.7549);
+  --popover: oklch(1 0 89.8756);
+  --popover-foreground: oklch(0.2077 0.0398 265.7549);
+  --primary: oklch(0.5269 0.153 31.0748);
+  --primary-foreground: oklch(1 0 89.8756);
+  --secondary: oklch(0.5139 0.1145 155.7639);
+  --secondary-foreground: oklch(1 0 89.8756);
+  --muted: oklch(0.9683 0.0069 247.8956);
+  --muted-foreground: oklch(0.5544 0.0407 257.4166);
+  --accent: oklch(0.9683 0.0069 247.8956);
+  --accent-foreground: oklch(0.2077 0.0398 265.7549);
+  /* destructive uses theme.ts's errorText (#991B1B), not its solid error
+     (#EF4444), as the fill: white-on-#EF4444 is exactly the known AA failure
+     (3.76:1) the design spec calls out — this is a deliberate fix, not a
+     literal port. success/warning/info follow theme.ts's own tint+text usage
+     pattern (successLight/successText etc.) rather than a solid saturated
+     fill, since that's how theme.ts actually pairs these for status chips. */
+  --destructive: oklch(0.4437 0.1613 26.8994);
+  --destructive-foreground: oklch(1 0 89.8756);
+  --border: oklch(0.9288 0.0126 255.5078);
+  --input: oklch(0.9288 0.0126 255.5078);
+  --ring: oklch(0.5269 0.153 31.0748);
+  --success: oklch(0.9505 0.0507 163.0508);
+  --success-foreground: oklch(0.4318 0.0865 166.9128);
+  --warning: oklch(0.9619 0.058 95.6174);
+  --warning-foreground: oklch(0.4732 0.1247 46.2007);
+  --info: oklch(0.9527 0.0498 180.8012);
+  --info-foreground: oklch(0.437 0.0705 188.2164);
+  --chart-1: oklch(0.5269 0.153 31.0748);
+  --chart-2: oklch(0.5139 0.1145 155.7639);
+  --chart-3: oklch(0.6002 0.1038 184.704);
+  --chart-4: oklch(0.7686 0.1647 70.0804);
+  --chart-5: oklch(0.6454 0.1299 35.8319);
+  --sidebar: oklch(0.2077 0.0398 265.7549);
+  --sidebar-foreground: oklch(0.9288 0.0126 255.5078);
+  --sidebar-primary: oklch(0.5269 0.153 31.0748);
+  --sidebar-primary-foreground: oklch(1 0 89.8756);
+  --sidebar-accent: oklch(0.2795 0.0368 260.031);
+  --sidebar-accent-foreground: oklch(0.9288 0.0126 255.5078);
+  --sidebar-border: oklch(0.3717 0.0392 257.287);
+  --sidebar-ring: oklch(0.5269 0.153 31.0748);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --radius: 0.75rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+[data-theme='vhsnd'].dark {
+  --background: oklch(0.1684 0 89.8756);
+  --foreground: oklch(0.9702 0 89.8756);
+  --card: oklch(0.2178 0 89.8756);
+  --card-foreground: oklch(0.9702 0 89.8756);
+  --popover: oklch(0.2178 0 89.8756);
+  --popover-foreground: oklch(0.9702 0 89.8756);
+  --primary: oklch(0.7411 0.1109 34.9552);
+  --primary-foreground: oklch(0.2178 0 89.8756);
+  --secondary: oklch(0.7001 0.1179 161.481);
+  --secondary-foreground: oklch(0.2178 0 89.8756);
+  --muted: oklch(0.2686 0 89.8756);
+  --muted-foreground: oklch(0.6401 0 89.8756);
+  --accent: oklch(0.2686 0 89.8756);
+  --accent-foreground: oklch(0.9702 0 89.8756);
+  --destructive: oklch(0.7538 0.1352 20.7575);
+  --destructive-foreground: oklch(0.1822 0 89.8756);
+  --border: oklch(0.3211 0 89.8756);
+  --input: oklch(0.3211 0 89.8756);
+  --ring: oklch(0.7411 0.1109 34.9552);
+  --success: oklch(0.2858 0.0531 156.1502);
+  --success-foreground: oklch(0.8522 0.1275 158.9752);
+  --warning: oklch(0.2977 0.0442 75.7509);
+  --warning-foreground: oklch(0.8529 0.1082 79.9554);
+  --info: oklch(0.3174 0.0484 188.6789);
+  --info-foreground: oklch(0.8549 0.1251 181.0707);
+  --chart-1: oklch(0.7411 0.1109 34.9552);
+  --chart-2: oklch(0.7001 0.1179 161.481);
+  --chart-3: oklch(0.7845 0.1325 181.912);
+  --chart-4: oklch(0.8164 0.1405 80.2562);
+  --chart-5: oklch(0.5867 0.1289 34.1593);
+  --sidebar: oklch(0 0 0);
+  --sidebar-foreground: oklch(0.8297 0 89.8756);
+  --sidebar-primary: oklch(0.7411 0.1109 34.9552);
+  --sidebar-primary-foreground: oklch(0.2178 0 89.8756);
+  --sidebar-accent: oklch(0.2178 0 89.8756);
+  --sidebar-accent-foreground: oklch(0.8297 0 89.8756);
+  --sidebar-border: oklch(0.3211 0 89.8756);
+  --sidebar-ring: oklch(0.7411 0.1109 34.9552);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --radius: 0.75rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+}
+
+[data-theme='vhsnd'] {
+  @theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
+    --font-serif: var(--font-serif);
+
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+
+    --shadow-2xs: var(--shadow-2xs);
+    --shadow-xs: var(--shadow-xs);
+    --shadow-sm: var(--shadow-sm);
+    --shadow: var(--shadow);
+    --shadow-md: var(--shadow-md);
+    --shadow-lg: var(--shadow-lg);
+    --shadow-xl: var(--shadow-xl);
+    --shadow-2xl: var(--shadow-2xl);
+  }
+}
