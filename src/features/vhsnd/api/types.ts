@@ -16,3 +16,12 @@ export interface ApiAttendance {
   status: 'Present' | 'Absent' | 'Not Recorded';
   check_in_time: string | null;
 }
+
+export interface ApiBeneficiaryAttendance {
+  id: number;
+  session_id: string;
+  beneficiary_id: string;
+  status: 'Present' | 'Absent' | 'Not Recorded';
+  reason: string | null;
+  follow_up_status: 'Pending' | 'Contacted' | 'Rescheduled' | null;
+}

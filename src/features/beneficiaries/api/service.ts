@@ -1,6 +1,6 @@
 import { apiGet, apiPatch } from '@/lib/api-config';
-import type { Beneficiary, Block } from '@/data/types';
-import { blockForVillage } from '@/data/villages';
+import type { Beneficiary } from '@/data/types';
+import { mapBeneficiary } from './adapters';
 import type { ApiBeneficiary, ApiHighRiskFlag, ApiPregnancy } from './types';
 
 // Joins three local-api resources into the shape every existing table/card
@@ -18,31 +18,9 @@ export async function getBeneficiaries(): Promise<Beneficiary[]> {
   const pregnancyByBeneficiary = new Map(pregnancies.map((p) => [p.beneficiary_id, p]));
   const riskByBeneficiary = new Map(highRisk.map((h) => [h.beneficiary_id, h]));
 
-  return beneficiaries.map((b): Beneficiary => {
-    const pregnancy = pregnancyByBeneficiary.get(b.id);
-    const risk = riskByBeneficiary.get(b.id);
-    return {
-      id: b.id,
-      name: b.name,
-      husbandName: b.husband_name || '',
-      age: b.age ?? 0,
-      village: b.village,
-      block: (b.block as Block) || blockForVillage(b.village),
-      anmId: b.anm_id || '',
-      anmName: b.anm_name || '',
-      trimester: (pregnancy?.trimester as 1 | 2 | 3) || 1,
-      gestationalAgeLabel: pregnancy?.gestational_age_label || '',
-      risk: risk
-        ? {
-            is_critical: true,
-            reasons: risk.reasons,
-            auto_flags: risk.auto_flags,
-            manual_flags: risk.manual_flags,
-            status: risk.status as 'ACTIVE' | 'ACKNOWLEDGED'
-          }
-        : { is_critical: false, reasons: [], auto_flags: [], manual_flags: [] }
-    };
-  });
+  return beneficiaries.map((b) =>
+    mapBeneficiary(b, pregnancyByBeneficiary.get(b.id), riskByBeneficiary.get(b.id))
+  );
 }
 
 export const acknowledgeHighRisk = (beneficiaryId: string) =>

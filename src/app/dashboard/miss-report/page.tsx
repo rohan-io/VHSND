@@ -1,12 +1,7 @@
 import PageContainer from '@/components/layout/page-container';
 import { ApiErrorAlert } from '@/components/api-error-alert';
 import { filterMissedBeneficiaries } from '@/data/missReport';
-// BENEFICIARY_ATTENDANCE (per-beneficiary session attendance + follow-up
-// status) has no local-api equivalent — local-api only tracks ANM-level
-// check-in (/api/attendance). Phase 3 is scoped to not modify the server, so
-// this one piece stays on the fixture; sessions and beneficiaries are live.
-import { BENEFICIARY_ATTENDANCE } from '@/data/vhsndSessions';
-import { getSessions } from '@/features/vhsnd/api/service';
+import { getSessions, getBeneficiaryAttendance } from '@/features/vhsnd/api/service';
 import { getBeneficiaries } from '@/features/beneficiaries/api/service';
 import { MissReportTable, type MissReportRow } from './miss-report-table';
 
@@ -15,8 +10,12 @@ export default async function MissReportPage() {
   let apiError = false;
 
   try {
-    const [sessions, beneficiaries] = await Promise.all([getSessions(), getBeneficiaries()]);
-    const missed = filterMissedBeneficiaries(sessions, BENEFICIARY_ATTENDANCE, new Date());
+    const [sessions, beneficiaries, beneficiaryAttendance] = await Promise.all([
+      getSessions(),
+      getBeneficiaries(),
+      getBeneficiaryAttendance()
+    ]);
+    const missed = filterMissedBeneficiaries(sessions, beneficiaryAttendance, new Date());
     const beneficiaryById = new Map(beneficiaries.map((b) => [b.id, b]));
 
     rows = missed.map((m) => ({

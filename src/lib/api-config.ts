@@ -6,16 +6,27 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:300
 
 export class ApiError extends Error {}
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/api${path}`, {
       ...init,
       cache: 'no-store',
+      signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...init?.headers }
     });
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new ApiError(`Timed out reaching the local API server at ${API_BASE}.`);
+    }
     throw new ApiError(`Cannot reach the local API server at ${API_BASE}.`, { cause: err });
+  } finally {
+    clearTimeout(timeoutId);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
