@@ -10,6 +10,10 @@ export interface RiskResult {
   reasons: string[];
   auto_flags: string[];
   manual_flags: string[];
+  // Set from local-api's high_risk_flags.status once a supervisor acts on a
+  // flag (see /dashboard/high-risk's "Mark Reviewed"). Undefined for
+  // fixture-only / non-critical beneficiaries with no flag record at all.
+  status?: 'ACTIVE' | 'ACKNOWLEDGED';
 }
 
 export type RiskCategory =

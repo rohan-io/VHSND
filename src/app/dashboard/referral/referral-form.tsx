@@ -2,10 +2,13 @@
 
 import * as z from 'zod';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
 import { useAppForm } from '@/lib/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { REFERRAL_FACILITIES } from '@/data/referrals';
-import { BENEFICIARIES } from '@/data/beneficiaries';
+import type { Beneficiary } from '@/data/types';
+import { createReferral } from '@/features/referrals/api/service';
 
 const referralFormSchema = z.object({
   beneficiaryId: z.string().min(1, 'Select a beneficiary'),
@@ -15,14 +18,25 @@ const referralFormSchema = z.object({
   notes: z.string()
 });
 
-const beneficiaryOptions = BENEFICIARIES.map((b) => ({
-  value: b.id,
-  label: `${b.name} — ${b.village}`
-}));
-
 const facilityOptions = REFERRAL_FACILITIES.map((f) => ({ value: f, label: f }));
 
-export function ReferralForm() {
+export function ReferralForm({ beneficiaries }: { beneficiaries: Beneficiary[] }) {
+  const router = useRouter();
+  const beneficiaryOptions = beneficiaries.map((b) => ({
+    value: b.id,
+    label: `${b.name} — ${b.village}`
+  }));
+
+  const createMutation = useMutation({
+    mutationFn: createReferral,
+    onSuccess: () => {
+      toast.success('Referred');
+      router.push('/dashboard/referral');
+      router.refresh();
+    },
+    onError: () => toast.error('Could not submit referral — is local-api running?')
+  });
+
   const form = useAppForm({
     defaultValues: {
       beneficiaryId: '',
@@ -34,9 +48,16 @@ export function ReferralForm() {
     validators: {
       onSubmit: referralFormSchema
     },
-    onSubmit: () => {
-      // Demo only — no backend to persist to yet.
-      toast.success('Referred');
+    onSubmit: async ({ value }) => {
+      const beneficiary = beneficiaries.find((b) => b.id === value.beneficiaryId);
+      await createMutation.mutateAsync({
+        beneficiary_id: value.beneficiaryId,
+        beneficiary_name: beneficiary?.name ?? value.beneficiaryId,
+        facility: value.facility,
+        reason: value.reason,
+        date: value.date,
+        notes: value.notes || undefined
+      });
       form.reset();
     }
   });
