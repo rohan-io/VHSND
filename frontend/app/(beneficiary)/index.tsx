@@ -14,7 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/src/context/ThemeContext";
+import { useTheme, useThemeMode } from "@/src/context/ThemeContext";
 import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { LoadError } from "@/src/components/LoadError";
@@ -58,6 +58,7 @@ export default function BeneficiaryHomeScreen() {
   const t = useTheme();
   const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const { mode: themeMode, setMode: setThemeMode } = useThemeMode();
   const { user, logout } = useAuth();
   const { showToast } = useToast();
 
@@ -126,7 +127,7 @@ export default function BeneficiaryHomeScreen() {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={t.colors.brandSecondary} />
+          <ActivityIndicator size="large" color={t.colors.brand} />
           <Text style={styles.loadingText}>{tr.beneficiary.loading}</Text>
         </View>
       </View>
@@ -157,15 +158,37 @@ export default function BeneficiaryHomeScreen() {
       {/* Warm, simple identity strip — deliberately not the Worker/Admin Header. */}
       <View style={styles.topBar}>
         <View style={styles.avatarCircle}>
-          <Ionicons name="person" size={22} color={t.colors.brandSecondaryDark} />
+          <Ionicons name="person" size={22} color={t.colors.brandText} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.greeting}>{tr.beneficiary.greeting}, {pregnancy.full_name}</Text>
           <Text style={styles.village} numberOfLines={1}>{pregnancy.village}</Text>
         </View>
-        <Pressable testID="beneficiary-logout-btn" onPress={handleLogout} style={styles.logoutIconBtn} hitSlop={8}>
-          <Ionicons name="log-out-outline" size={22} color={t.colors.textSecondary} />
-        </Pressable>
+        <View style={styles.actionsRow}>
+          <Pressable
+            testID="beneficiary-theme-toggle-btn"
+            onPress={() => setThemeMode(t.name === "dark" ? "light" : "dark")}
+            style={styles.iconButton}
+            hitSlop={6}
+          >
+            <Ionicons
+              name={t.name === "dark" ? "sunny-outline" : "moon-outline"}
+              size={19}
+              color={t.colors.brandDark}
+            />
+          </Pressable>
+          <Pressable
+            testID="beneficiary-profile-btn"
+            onPress={() => router.push("/(beneficiary)/profile" as any)}
+            style={styles.iconButton}
+            hitSlop={6}
+          >
+            <Ionicons name="person-circle-outline" size={20} color={t.colors.brandDark} />
+          </Pressable>
+          <Pressable testID="beneficiary-logout-btn" onPress={handleLogout} style={styles.iconButton} hitSlop={6}>
+            <Ionicons name="log-out-outline" size={19} color={t.colors.error} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.demoBanner} testID="beneficiary-demo-banner">
@@ -176,7 +199,7 @@ export default function BeneficiaryHomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.colors.brandSecondary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.colors.brand} />}
       >
         {/* 1. VHSND Notifications */}
         <Text style={styles.sectionTitle}>{tr.beneficiary.sectionVhsnd}</Text>
@@ -225,14 +248,14 @@ export default function BeneficiaryHomeScreen() {
         <View style={styles.card}>
           {latestVisit?.next_visit_date ? (
             <View style={styles.dueRow}>
-              <Ionicons name="calendar-outline" size={18} color={t.colors.brandSecondaryDark} />
+              <Ionicons name="calendar-outline" size={18} color={t.colors.brandDark} />
               <Text style={styles.dueLabel}>{tr.beneficiary.nextAncVisit}</Text>
               <Text style={styles.dueValue}>{latestVisit.next_visit_date}</Text>
             </View>
           ) : null}
           {!delivered && pregnancy.edd ? (
             <View style={[styles.dueRow, latestVisit?.next_visit_date && styles.rowDivider]}>
-              <Ionicons name="flag-outline" size={18} color={t.colors.brandSecondaryDark} />
+              <Ionicons name="flag-outline" size={18} color={t.colors.brandDark} />
               <Text style={styles.dueLabel}>{tr.beneficiary.expectedDelivery}</Text>
               <Text style={styles.dueValue}>{pregnancy.edd}</Text>
             </View>
@@ -261,7 +284,7 @@ export default function BeneficiaryHomeScreen() {
                 ) : null}
               </View>
               {pregnancy.assigned_worker_mobile ? (
-                <Ionicons name="call" size={20} color={t.colors.brandSecondaryDark} />
+                <Ionicons name="call" size={20} color={t.colors.brandDark} />
               ) : null}
             </Pressable>
           ) : (
@@ -360,13 +383,21 @@ const makeStyles = (t: Theme) =>
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: t.colors.brandSecondaryLight,
+      backgroundColor: t.colors.brandLight,
       alignItems: "center",
       justifyContent: "center",
     },
     greeting: { fontSize: 16, fontWeight: "800", color: t.colors.textPrimary },
     village: { fontSize: 12, color: t.colors.textSecondary, marginTop: 2 },
-    logoutIconBtn: { padding: 6 },
+    actionsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    iconButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: t.colors.surfaceTertiary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
     demoBanner: {
       flexDirection: "row",
@@ -404,11 +435,11 @@ const makeStyles = (t: Theme) =>
 
     dueRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     dueLabel: { flex: 1, fontSize: 13, color: t.colors.textPrimary, fontWeight: "600" },
-    dueValue: { fontSize: 13, fontWeight: "800", color: t.colors.brandSecondaryDark },
+    dueValue: { fontSize: 13, fontWeight: "800", color: t.colors.brandDark },
 
     workerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    workerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: t.colors.brandSecondaryLight, alignItems: "center", justifyContent: "center" },
-    workerAvatarText: { fontSize: 16, fontWeight: "800", color: t.colors.brandSecondaryDark },
+    workerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: t.colors.brandLight, alignItems: "center", justifyContent: "center" },
+    workerAvatarText: { fontSize: 16, fontWeight: "800", color: t.colors.brandDark },
     workerName: { fontSize: 14, fontWeight: "700", color: t.colors.textPrimary },
     workerContact: { fontSize: 12, color: t.colors.textSecondary, marginTop: 2 },
 
@@ -424,10 +455,10 @@ const makeStyles = (t: Theme) =>
       borderWidth: 1,
       borderColor: t.colors.border,
     },
-    ratingChipActive: { backgroundColor: t.colors.brandSecondary, borderColor: t.colors.brandSecondary },
+    ratingChipActive: { backgroundColor: t.colors.brand, borderColor: t.colors.brand },
     ratingChipText: { fontSize: 11, fontWeight: "700", color: t.colors.textSecondary },
     ratingChipTextActive: { color: t.colors.onBrand },
-    submitBtn: { backgroundColor: t.colors.brandSecondary, borderRadius: t.radius.md, paddingVertical: 13, alignItems: "center" },
+    submitBtn: { backgroundColor: t.colors.brand, borderRadius: t.radius.md, paddingVertical: 13, alignItems: "center" },
     submitBtnText: { color: t.colors.onBrand, fontSize: 13, fontWeight: "800" },
 
     thanksRow: { flexDirection: "row", alignItems: "center", gap: 8 },
