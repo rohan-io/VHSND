@@ -1,29 +1,13 @@
 import React from "react";
-import { Platform } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@/src/context/ThemeContext";
+import { useTabScreenOptions } from "@/src/hooks/use-tab-screen-options";
 import { useTranslation } from "@/src/context/LanguageContext";
 
 export default function TabsLayout() {
-  const t = useTheme();
   const tr = useTranslation();
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: t.colors.brandText,
-        tabBarInactiveTintColor: t.colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: t.colors.surfaceSecondary,
-          borderTopColor: t.colors.border,
-          borderTopWidth: 1,
-          ...(Platform.OS === "web" ? { height: 64 } : {}),
-        },
-        tabBarItemStyle: { alignSelf: "center" },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
-      }}
-    >
+    <Tabs screenOptions={useTabScreenOptions()}>
       <Tabs.Screen
         name="index"
         options={{
