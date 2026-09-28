@@ -55,9 +55,6 @@ async function main() {
     const created = await res.json();
     assert.ok(created.id);
 
-    res = await get("/api/pregnancies");
-    assert.strictEqual((await res.json()).length, 16);
-
     res = await get("/api/sessions");
     const sessions = await res.json();
     assert.strictEqual(sessions.length, 6);
@@ -77,6 +74,53 @@ async function main() {
 
     res = await post("/api/beneficiaries", { village: "Mangarajpur" }); // missing name
     assert.strictEqual(res.status, 400);
+
+    // --- mobile app routes (mirrors demoDb.ts — see mobileRoutes.js) ---
+    res = await post("/api/auth/login", { username: "worker01", password: "Worker@123" });
+    assert.strictEqual(res.status, 200);
+    const login = await res.json();
+    assert.ok(login.access_token);
+    assert.strictEqual(login.user.username, "worker01");
+
+    res = await post("/api/auth/login", { username: "worker01", password: "wrong" });
+    assert.strictEqual(res.status, 401);
+
+    res = await get("/api/dashboard");
+    assert.strictEqual(res.status, 200);
+    assert.ok((await res.json()).summary.total_pregnancies > 0);
+
+    res = await get("/api/pregnancies");
+    let body = await res.json();
+    assert.strictEqual(body.total, 50, "expected 50 seeded pregnancies");
+
+    res = await post("/api/pregnancies", { full_name: "Smoke Test Mother", age: 26, village: "Mangarajpur", lmp: "2026-06-01" });
+    assert.strictEqual(res.status, 201);
+    const preg = await res.json();
+    assert.ok(preg.id);
+
+    res = await get(`/api/pregnancies/${preg.id}`);
+    assert.strictEqual(res.status, 200);
+    body = await res.json();
+    assert.ok(body.pregnancy && Array.isArray(body.visits) && Array.isArray(body.children));
+
+    res = await post(`/api/pregnancies/${preg.id}/visits`, { weight: 52 });
+    assert.strictEqual(res.status, 201);
+
+    res = await get("/api/children");
+    assert.strictEqual((await res.json()).total, 30, "expected 30 seeded children");
+
+    res = await get("/api/alerts");
+    assert.ok((await res.json()).total > 0);
+
+    res = await get("/api/notifications");
+    assert.strictEqual((await res.json()).items.length, 3);
+
+    res = await get("/api/admin/kpis");
+    assert.strictEqual(res.status, 200);
+
+    res = await get("/api/health-workers/USR-HW-001/supervised-team");
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual((await res.json()).supervisor.id, "USR-HW-001");
 
     console.log("All smoke tests passed.");
   } finally {

@@ -1,11 +1,27 @@
 import { storage } from "@/src/utils/storage";
 import { demoRequest } from "@/src/api/demoDb";
 
-// Standalone offline demo: when on, every request is served from a bundled local
-// SQLite dataset (src/api/demoDb.ts) and no network call is ever made.
-export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+// Three data-layer modes, picked via EXPO_PUBLIC_API_MODE:
+//   - "local"   : real HTTP to the local-api dev server (default) — falls back
+//                 to offline demo data per-request if that server is unreachable.
+//   - "offline" : bundled local SQLite dataset (src/api/demoDb.ts), no network
+//                 call ever made. This is what the shipped APK's "preview"
+//                 EAS build profile sets via the legacy EXPO_PUBLIC_DEMO_MODE=true.
+//   - "mongodb" : the production FastAPI/Mongo backend (future).
+export type ApiMode = "local" | "offline" | "mongodb";
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+const legacyDemoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+export const API_MODE: ApiMode =
+  (process.env.EXPO_PUBLIC_API_MODE as ApiMode) || (legacyDemoMode ? "offline" : "local");
+
+// Kept for existing callers/back-compat with the old flag's meaning.
+export const DEMO_MODE = API_MODE === "offline";
+
+const DEFAULT_LOCAL_API_URL = "http://localhost:3001";
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  (API_MODE === "local" ? DEFAULT_LOCAL_API_URL : "");
 export const API_BASE_URL = `${BACKEND_URL}/api`;
 
 export const TOKEN_KEY = "mch_auth_token";
@@ -115,6 +131,15 @@ export async function apiRequest<T = any>(
   } catch (error: any) {
     if (error instanceof ApiError) {
       throw error;
+    }
+    // Network-level failure only (fetch itself threw, or timed out) — a real
+    // response from the server (4xx/5xx) already threw ApiError above and
+    // never reaches here. In "local" mode, the local-api dev server being
+    // down shouldn't break the app: fall back to the bundled offline dataset
+    // for this one request instead of surfacing an error.
+    if (API_MODE === "local") {
+      console.warn("Cannot reach API server. Running in offline mode.");
+      return demoRequest<T>(path.startsWith("/") ? path : `/${path}`, options);
     }
     if (error?.name === "AbortError") {
       throw new ApiError(

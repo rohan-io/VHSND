@@ -74,69 +74,12 @@ app.patch("/api/beneficiaries/:id", (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// pregnancies
-// ---------------------------------------------------------------------------
-const serializePregnancy = (row) => ({ ...row, is_high_risk: !!row.is_high_risk, risk_reasons: parseArr(row.risk_reasons) });
-
-app.get("/api/pregnancies", (req, res) => {
-  const { status } = req.query;
-  const rows = status
-    ? db.prepare("SELECT * FROM pregnancies WHERE status = ? ORDER BY created_at DESC").all(status)
-    : db.prepare("SELECT * FROM pregnancies ORDER BY created_at DESC").all();
-  res.json(rows.map(serializePregnancy));
-});
-
-app.get("/api/pregnancies/:id", (req, res) => {
-  const row = db.prepare("SELECT * FROM pregnancies WHERE id = ?").get(req.params.id);
-  if (!row) return notFound(res, "Pregnancy");
-  res.json(serializePregnancy(row));
-});
-
-app.post("/api/pregnancies", (req, res) => {
-  const { beneficiary_id, trimester } = req.body || {};
-  if (!beneficiary_id || !trimester) return res.status(400).json({ error: "beneficiary_id and trimester are required" });
-
-  const beneficiary = db.prepare("SELECT id FROM beneficiaries WHERE id = ?").get(beneficiary_id);
-  if (!beneficiary) return res.status(400).json({ error: "beneficiary_id does not exist" });
-
-  const row = {
-    id: req.body.id || `PREG-LOCAL-${Date.now()}`,
-    beneficiary_id,
-    trimester,
-    gestational_age_label: req.body.gestational_age_label || null,
-    is_high_risk: req.body.is_high_risk ? 1 : 0,
-    risk_reasons: JSON.stringify(req.body.risk_reasons || []),
-    status: req.body.status || "active",
-    created_at: now(),
-    updated_at: now(),
-  };
-  db.prepare(`
-    INSERT INTO pregnancies (id, beneficiary_id, trimester, gestational_age_label, is_high_risk, risk_reasons, status, created_at, updated_at)
-    VALUES (@id, @beneficiary_id, @trimester, @gestational_age_label, @is_high_risk, @risk_reasons, @status, @created_at, @updated_at)
-  `).run(row);
-  res.status(201).json(serializePregnancy(row));
-});
-
-app.patch("/api/pregnancies/:id", (req, res) => {
-  const existing = db.prepare("SELECT * FROM pregnancies WHERE id = ?").get(req.params.id);
-  if (!existing) return notFound(res, "Pregnancy");
-
-  const updated = {
-    ...existing,
-    ...req.body,
-    id: existing.id,
-    is_high_risk: req.body.is_high_risk !== undefined ? (req.body.is_high_risk ? 1 : 0) : existing.is_high_risk,
-    risk_reasons: req.body.risk_reasons ? JSON.stringify(req.body.risk_reasons) : existing.risk_reasons,
-    updated_at: now(),
-  };
-  db.prepare(`
-    UPDATE pregnancies SET trimester=@trimester, gestational_age_label=@gestational_age_label,
-      is_high_risk=@is_high_risk, risk_reasons=@risk_reasons, status=@status, updated_at=@updated_at
-    WHERE id=@id
-  `).run(updated);
-  res.json(serializePregnancy(updated));
-});
-
+// NOTE: pregnancies are served by mobileRoutes.js (mounted below), not here.
+// Phase 1 had a thin admin-web-shaped /api/pregnancies here; Phase 2 replaced
+// it because the mobile app's real client (frontend/src/api/mch.ts) needs the
+// full demoDb.ts-shaped record (name, vitals, ANC visits, etc.), not this
+// beneficiary_id/trimester/risk_reasons stub. Admin-web isn't wired yet
+// (Phase 3) — when it is, it should consume the same /api/pregnancies.
 // ---------------------------------------------------------------------------
 // VHSND sessions
 // ---------------------------------------------------------------------------
@@ -326,9 +269,15 @@ app.get("/api/villages", (req, res) => {
   res.json(db.prepare("SELECT * FROM villages ORDER BY name ASC").all());
 });
 
-app.get("/api/children", (req, res) => {
-  res.json(db.prepare("SELECT * FROM children ORDER BY created_at DESC").all());
-});
+// NOTE: /api/children is served by mobileRoutes.js below (same reasoning as
+// pregnancies, above). This admin-web-shaped children table is now unused by
+// any route but kept seeded for when admin-web is wired in Phase 3.
+
+// ---------------------------------------------------------------------------
+// mobile app routes (auth, dashboard, pregnancies, children, alerts,
+// notifications, admin/kpis, supervised-team) — see mobileRoutes.js
+// ---------------------------------------------------------------------------
+app.use("/api", require("./mobileRoutes"));
 
 // ---------------------------------------------------------------------------
 // 404 + error handling
