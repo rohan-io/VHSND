@@ -17,8 +17,6 @@ import { useTheme } from "@/src/context/ThemeContext";
 import { useTranslation } from "@/src/context/LanguageContext";
 import type { Theme } from "@/src/constants/theme";
 import { useAuth } from "@/src/context/AuthContext";
-import { DEMO_MODE } from "@/src/api/client";
-import { DemoCredentialsHint } from "@/src/components/DemoCredentialsHint";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -102,9 +100,7 @@ export default function LoginScreen() {
       return;
     }
     setErrorMsg(null);
-    // Demo speed: pre-fill a valid-looking OTP instead of making the reviewer
-    // guess one — any 6-digit code would be accepted anyway.
-    setBenOtp("123456");
+    setBenOtp("");
     setBenStep("otp");
   };
 
@@ -182,9 +178,6 @@ export default function LoginScreen() {
             </Text>
           </View>
         </View>
-
-        {/* Demo-only credentials hint — remove for production (see component) */}
-        {DEMO_MODE && <DemoCredentialsHint />}
 
         {/* Role selection (shown until a role is chosen) — 2x2 grid, one tile per role.
             Each tile's tint is pulled from the existing token ramps only (brand
@@ -396,11 +389,6 @@ export default function LoginScreen() {
                 </View>
               </View>
 
-              <View style={styles.otpDemoNoteRow}>
-                <Ionicons name="flask-outline" size={13} color={t.colors.infoText} />
-                <Text style={styles.otpDemoNoteText}>{tr.login.otpDemoNote}</Text>
-              </View>
-
               <Pressable
                 testID="beneficiary-change-mobile-btn"
                 onPress={() => { setBenStep("mobile"); setBenOtp(""); setErrorMsg(null); }}
@@ -542,14 +530,15 @@ const makeStyles = (t: Theme) =>
       flexShrink: 1,
     },
     credSection: {
-      marginTop: 12,
+      marginTop: 20,
       marginBottom: 16,
     },
     sectionLabel: {
-      fontSize: 13,
-      fontWeight: "700",
+      fontSize: 15,
+      fontWeight: "800",
       color: t.colors.textPrimary,
-      marginBottom: 10,
+      textAlign: "center",
+      marginBottom: 14,
     },
     roleGrid: {
       gap: 12,
@@ -695,20 +684,6 @@ const makeStyles = (t: Theme) =>
       color: t.colors.textSecondary,
       marginBottom: 14,
       fontWeight: "600",
-    },
-    otpDemoNoteRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      backgroundColor: t.colors.infoLight,
-      borderRadius: t.radius.sm,
-      padding: 10,
-      marginBottom: 14,
-    },
-    otpDemoNoteText: {
-      fontSize: 11,
-      color: t.colors.infoText,
-      flex: 1,
     },
     changeMobileRow: {
       alignSelf: "flex-end",

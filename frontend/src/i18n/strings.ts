@@ -118,11 +118,6 @@ export const STRINGS = {
     otpSentPrefix: { en: "A 6-digit OTP was sent to", or: "ଏକ ୬-ଅଙ୍କ OTP ପଠାଯାଇଛି" }, // REVIEW
     otpLabel: { en: "Enter OTP", or: "OTP ଦିଅନ୍ତୁ" }, // REVIEW
     otpPlaceholder: { en: "6-digit code", or: "୬-ଅଙ୍କ କୋଡ୍" }, // REVIEW
-    otpDemoNote: {
-      en: "Demo mode: any 6-digit code works.",
-      or: "ଡେମୋ ମୋଡ୍: ଯେକୌଣସି ୬-ଅଙ୍କ କୋଡ୍ କାମ କରିବ।", // REVIEW
-    },
-    anySixDigitOtp: { en: "Any 6-digit OTP", or: "ଯେକୌଣସି ୬-ଅଙ୍କ OTP" }, // REVIEW
     needOtp: { en: "Please enter the 6-digit OTP", or: "ଦୟାକରି ୬-ଅଙ୍କ OTP ଦିଅନ୍ତୁ" }, // REVIEW
     verifyAndSignIn: { en: "Verify & Sign In", or: "ଯାଞ୍ଚ କରି ସାଇନ ଇନ କରନ୍ତୁ" }, // REVIEW
     changeMobile: { en: "Change number", or: "ନମ୍ବର ବଦଳାନ୍ତୁ" }, // REVIEW
@@ -148,16 +143,10 @@ export const STRINGS = {
     },
     recoveryTitle: { en: "Credential Recovery", or: "ପ୍ରମାଣପତ୍ର ପୁନରୁଦ୍ଧାର" }, // REVIEW
     recoveryBody: {
-      en: "In field deployment, password resets are authorized by the PHC Medical Officer or Block Program Manager.\n\nFor this demo prototype, use:\n• Admin: admin / Admin@123\n• Worker: worker01 / Worker@123",
-      or: "କ୍ଷେତ୍ର ମୋତାୟନରେ, ପାସୱାର୍ଡ ରିସେଟ PHC ମେଡିକାଲ ଅଫିସର କିମ୍ବା ବ୍ଲକ ପ୍ରୋଗ୍ରାମ ମ୍ୟାନେଜରଙ୍କ ଦ୍ୱାରା ଅନୁମୋଦିତ ହୁଏ।\n\nଏହି ଡେମୋ ପାଇଁ, ବ୍ୟବହାର କରନ୍ତୁ:\n• Admin: admin / Admin@123\n• Worker: worker01 / Worker@123", // REVIEW
+      en: "In field deployment, password resets are authorized by the PHC Medical Officer or Block Program Manager.\n\nFor this demo prototype, contact your program coordinator for access.",
+      or: "କ୍ଷେତ୍ର ମୋତାୟନରେ, ପାସୱାର୍ଡ ରିସେଟ PHC ମେଡିକାଲ ଅଫିସର କିମ୍ବା ବ୍ଲକ ପ୍ରୋଗ୍ରାମ ମ୍ୟାନେଜରଙ୍କ ଦ୍ୱାରା ଅନୁମୋଦିତ ହୁଏ।\n\nଏହି ଡେମୋ ପାଇଁ, ଆପଣଙ୍କ ପ୍ରୋଗ୍ରାମ ସଂଯୋଜକଙ୍କୁ ଯୋଗାଯୋଗ କରନ୍ତୁ।", // REVIEW
     },
     closeReturn: { en: "Close & Return to Login", or: "ବନ୍ଦ କରି ଲଗଇନକୁ ଫେରନ୍ତୁ" },
-    demoAccounts: { en: "Demo accounts", or: "ଡେମୋ ଆକାଉଣ୍ଟ" },
-    demoOnly: { en: "DEMO ONLY", or: "କେବଳ ଡେମୋ" },
-    demoNote: {
-      en: "Sample data only — this app runs fully offline for the demo.",
-      or: "କେବଳ ନମୁନା ତଥ୍ୟ — ଏହି ଆପ୍ ଡେମୋ ପାଇଁ ସମ୍ପୂର୍ଣ୍ଣ ଅଫଲାଇନ ଚାଲେ।", // REVIEW
-    },
   },
 
   dashboard: {
