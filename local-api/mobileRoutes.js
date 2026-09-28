@@ -120,12 +120,28 @@ router.get("/dashboard", (req, res) => {
   const act = ps.filter((p) => ["active", "high_risk"].includes(p.status));
   const as = all("alerts").filter((a) => a.status === "ACTIVE");
 
+  // Same union rule as admin-web's mapBeneficiary (adapters.ts): a mother is
+  // high-risk if EITHER source says so — the mobile pregnancy's own
+  // is_high_risk flag, or a relational high_risk_flags row (any review
+  // status — acknowledging one doesn't make her not-critical, it just
+  // tracks review). Scoped over every non-delivered pregnancy, matching
+  // admin-web's getBeneficiaries() source set, not `act` above (which is
+  // active/high_risk only and drives the other tiles here) — so this one
+  // figure doesn't silently diverge from the board if an archived pregnancy
+  // is ever introduced. See audit Finding 5.
+  const relationallyFlaggedIds = new Set(
+    db.prepare("SELECT DISTINCT beneficiary_id FROM high_risk_flags").all().map((r) => r.beneficiary_id)
+  );
+  const highRiskUnionCount = ps.filter(
+    (p) => p.status !== "delivered" && (p.is_high_risk || relationallyFlaggedIds.has(p.beneficiary_id))
+  ).length;
+
   const summary = {
     total_pregnancies: act.length,
     trimester_1: act.filter((p) => p.trimester === 1).length,
     trimester_2: act.filter((p) => p.trimester === 2).length,
     trimester_3: act.filter((p) => p.trimester === 3).length,
-    high_risk_pregnancies: act.filter((p) => p.is_high_risk).length,
+    high_risk_pregnancies: highRiskUnionCount,
     delivered_pregnancies: ps.filter((p) => p.status === "delivered").length,
     anc_due: Math.max(as.filter((a) => a.alert_type === "UPCOMING_ANC").length, 4),
     anc_overdue: Math.max(as.filter((a) => a.alert_type === "MISSED_ANC").length, 3),

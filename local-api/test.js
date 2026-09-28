@@ -96,7 +96,27 @@ async function main() {
 
     res = await get("/api/dashboard");
     assert.strictEqual(res.status, 200);
-    assert.ok((await res.json()).summary.total_pregnancies > 0);
+    const dashboardSummary = (await res.json()).summary;
+    assert.ok(dashboardSummary.total_pregnancies > 0);
+
+    // Finding 5: /api/dashboard's high_risk_pregnancies must agree with
+    // admin-web's High-Risk board — same union rule (mobile is_high_risk OR
+    // a relational high_risk_flags row, any review status), same source set
+    // (every non-delivered pregnancy).
+    const [allPregnanciesForUnion, relationalFlags] = await Promise.all([
+      get("/api/pregnancies").then((r) => r.json()).then((b) => b.items),
+      get("/api/high-risk").then((r) => r.json()),
+    ]);
+    const relationalIds = new Set(relationalFlags.map((h) => h.beneficiary_id));
+    const expectedUnion = allPregnanciesForUnion.filter(
+      (p) => p.status !== "delivered" && (p.is_high_risk || relationalIds.has(p.beneficiary_id))
+    ).length;
+    assert.strictEqual(
+      dashboardSummary.high_risk_pregnancies,
+      expectedUnion,
+      "dashboard high_risk_pregnancies must match the union rule (mobile OR relational), independently recomputed"
+    );
+    assert.strictEqual(dashboardSummary.high_risk_pregnancies, 33, "expected 33 for the seeded dataset (28 mobile-flagged ∪ 12 relational-flagged, 7 overlap)");
 
     res = await get("/api/pregnancies");
     let body = await res.json();
