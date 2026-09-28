@@ -73,6 +73,7 @@ see the data section above for why they don't share a schema yet.
 | GET | `/high-risk` | beneficiary + flags joined |
 | GET | `/high-risk/:id` | keyed by beneficiary ID |
 | PATCH | `/high-risk/:id` | flags / status |
+| GET | `/beneficiary-attendance` | optional `?session_id=` filter; per-beneficiary VHSND attendance (distinct from `/attendance`, which is the ANM's own check-in) |
 
 ### Mobile-app-shaped (Phase 2, `mobileRoutes.js`) — mirrors `demoDb.ts` 1:1
 

@@ -72,6 +72,14 @@ async function main() {
     res = await get("/api/high-risk");
     assert.strictEqual((await res.json()).length, 12);
 
+    res = await get("/api/beneficiary-attendance");
+    assert.strictEqual(res.status, 200);
+    const beneficiaryAttendance = await res.json();
+    assert.strictEqual(beneficiaryAttendance.length, 4, "expected 4 seeded per-beneficiary attendance records");
+
+    res = await get("/api/beneficiary-attendance?session_id=VHSND-2026-MGRJ-01");
+    assert.strictEqual((await res.json()).length, 2);
+
     res = await post("/api/beneficiaries", { village: "Mangarajpur" }); // missing name
     assert.strictEqual(res.status, 400);
 

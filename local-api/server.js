@@ -168,6 +168,18 @@ app.patch("/api/attendance/:id", (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// beneficiary attendance (per-beneficiary VHSND attendance — distinct from
+// anm_attendance, which is whether the ANM herself showed up)
+// ---------------------------------------------------------------------------
+app.get("/api/beneficiary-attendance", (req, res) => {
+  const { session_id } = req.query;
+  const rows = session_id
+    ? db.prepare("SELECT * FROM beneficiary_attendance WHERE session_id = ?").all(session_id)
+    : db.prepare("SELECT * FROM beneficiary_attendance ORDER BY created_at DESC").all();
+  res.json(rows);
+});
+
+// ---------------------------------------------------------------------------
 // referrals
 // ---------------------------------------------------------------------------
 app.get("/api/referrals", (req, res) => {

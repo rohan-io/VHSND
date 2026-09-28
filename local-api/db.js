@@ -90,6 +90,16 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'ACTIVE',
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS beneficiary_attendance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES vhsnd_sessions(id),
+    beneficiary_id TEXT NOT NULL REFERENCES beneficiaries(id),
+    status TEXT NOT NULL DEFAULT 'Not Recorded',
+    reason TEXT,
+    follow_up_status TEXT,
+    created_at TEXT NOT NULL
+  );
 `);
 
 // ---------------------------------------------------------------------------
@@ -212,6 +222,23 @@ const ANM_ATTENDANCE_SEED = [
   { sessionId: "VHSND-2026-GNDP-01", status: "Absent", checkInTime: null },
 ];
 
+// Per-beneficiary VHSND attendance (did she personally show up, as opposed to
+// anm_attendance which is whether the ANM showed up to run the session) —
+// same 4 records admin-web's src/data/vhsndSessions.ts fixture used to hardcode.
+const BENEFICIARY_ATTENDANCE_SEED = [
+  { sessionId: "VHSND-2026-MGRJ-01", beneficiaryIndex: 0, status: "Present" },
+  {
+    sessionId: "VHSND-2026-MGRJ-01",
+    beneficiaryIndex: 11,
+    status: "Absent",
+    reason: "Travelled to relatives",
+    followUpStatus: "Contacted",
+  },
+  { sessionId: "VHSND-2026-BDTP-01", beneficiaryIndex: 1, status: "Present" },
+  { sessionId: "VHSND-2026-BDTP-01", beneficiaryIndex: 9, status: "Present" },
+  // BEN-2026-515 (index 15) at VHSND-2026-BDTP-01 has no record: an unrecorded past-session miss.
+];
+
 const REFERRALS_SEED = [
   {
     id: "REF-2026-001",
@@ -266,6 +293,10 @@ function seedIfEmpty() {
   const insertReferral = db.prepare(`
     INSERT INTO referrals (id, beneficiary_id, beneficiary_name, facility, reason, date, follow_up_status, notes, created_at)
     VALUES (@id, @beneficiary_id, @beneficiary_name, @facility, @reason, @date, @follow_up_status, @notes, @created_at)
+  `);
+  const insertBeneficiaryAttendance = db.prepare(`
+    INSERT INTO beneficiary_attendance (session_id, beneficiary_id, status, reason, follow_up_status, created_at)
+    VALUES (@session_id, @beneficiary_id, @status, @reason, @follow_up_status, @created_at)
   `);
 
   const seedAll = db.transaction(() => {
@@ -370,6 +401,17 @@ function seedIfEmpty() {
         date: r.date,
         follow_up_status: r.followUpStatus,
         notes: r.notes,
+        created_at: now,
+      });
+    }
+
+    for (const a of BENEFICIARY_ATTENDANCE_SEED) {
+      insertBeneficiaryAttendance.run({
+        session_id: a.sessionId,
+        beneficiary_id: beneficiaryIds[a.beneficiaryIndex],
+        status: a.status,
+        reason: a.reason || null,
+        follow_up_status: a.followUpStatus || null,
         created_at: now,
       });
     }
