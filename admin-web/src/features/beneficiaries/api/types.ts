@@ -13,6 +13,7 @@ export interface ApiPregnancy {
   assigned_worker_id: string;
   assigned_worker_name: string;
   status: string;
+  created_at: string;
 }
 
 export interface ApiHighRiskFlag {
@@ -21,4 +22,5 @@ export interface ApiHighRiskFlag {
   auto_flags: string[];
   manual_flags: string[];
   status: string;
+  created_at: string;
 }

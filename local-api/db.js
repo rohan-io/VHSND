@@ -95,6 +95,7 @@ db.exec(`
     auto_flags TEXT NOT NULL DEFAULT '[]',
     manual_flags TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TEXT,
     updated_at TEXT NOT NULL
   );
 
@@ -154,9 +155,21 @@ dropBeneficiaryForeignKey(
     auto_flags TEXT NOT NULL DEFAULT '[]',
     manual_flags TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TEXT,
     updated_at TEXT NOT NULL
   )`
 );
+
+// created_at didn't exist on high_risk_flags before the "date flagged" card
+// display — add it for existing DB files and backfill from updated_at (the
+// closest available value, and correct as long as this runs before that
+// row's first edit — true for every current row, since Mark Reviewed is the
+// only thing that ever touches updated_at).
+const highRiskColumns = db.prepare("PRAGMA table_info(high_risk_flags)").all();
+if (!highRiskColumns.some((c) => c.name === "created_at")) {
+  db.exec("ALTER TABLE high_risk_flags ADD COLUMN created_at TEXT");
+  db.exec("UPDATE high_risk_flags SET created_at = updated_at WHERE created_at IS NULL");
+}
 
 // ---------------------------------------------------------------------------
 // seed data — copied by value from frontend/src/api/demoDb.ts (villages/
@@ -331,8 +344,8 @@ function seedIfEmpty() {
     VALUES (@id, @beneficiary_id, @trimester, @gestational_age_label, @is_high_risk, @risk_reasons, @status, @created_at, @updated_at)
   `);
   const insertHighRisk = db.prepare(`
-    INSERT INTO high_risk_flags (beneficiary_id, risk_category, reasons, auto_flags, manual_flags, status, updated_at)
-    VALUES (@beneficiary_id, @risk_category, @reasons, @auto_flags, @manual_flags, @status, @updated_at)
+    INSERT INTO high_risk_flags (beneficiary_id, risk_category, reasons, auto_flags, manual_flags, status, created_at, updated_at)
+    VALUES (@beneficiary_id, @risk_category, @reasons, @auto_flags, @manual_flags, @status, @created_at, @updated_at)
   `);
   const insertChild = db.prepare(`
     INSERT INTO children (id, name, mother_id, mother_name, village, block, age_label, created_at)
@@ -400,6 +413,7 @@ function seedIfEmpty() {
           auto_flags: JSON.stringify(risk.auto_flags),
           manual_flags: JSON.stringify(risk.manual_flags),
           status: "ACTIVE",
+          created_at: now,
           updated_at: now,
         });
       }

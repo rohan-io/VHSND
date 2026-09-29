@@ -340,11 +340,12 @@ app.patch("/api/high-risk/:id", (req, res) => {
       auto_flags: JSON.stringify(req.body.auto_flags || pregnancy?.high_risk_reasons || []),
       manual_flags: JSON.stringify(req.body.manual_flags || []),
       status: req.body.status || "ACTIVE",
+      created_at: now(),
       updated_at: now(),
     };
     db.prepare(`
-      INSERT INTO high_risk_flags (beneficiary_id, risk_category, reasons, auto_flags, manual_flags, status, updated_at)
-      VALUES (@beneficiary_id, @risk_category, @reasons, @auto_flags, @manual_flags, @status, @updated_at)
+      INSERT INTO high_risk_flags (beneficiary_id, risk_category, reasons, auto_flags, manual_flags, status, created_at, updated_at)
+      VALUES (@beneficiary_id, @risk_category, @reasons, @auto_flags, @manual_flags, @status, @created_at, @updated_at)
     `).run(created);
     cascadeHighRiskAcknowledgement(beneficiaryId, created.status);
     return res.status(201).json(serializeHighRisk(created));

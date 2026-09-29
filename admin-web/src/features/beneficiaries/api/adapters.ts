@@ -43,7 +43,8 @@ export function mapBeneficiary(
           reasons,
           auto_flags: autoFlags,
           manual_flags: manualFlags,
-          status: relationalRisk?.status as 'ACTIVE' | 'ACKNOWLEDGED' | undefined
+          status: relationalRisk?.status as 'ACTIVE' | 'ACKNOWLEDGED' | undefined,
+          flaggedAt: relationalRisk?.created_at ?? pregnancy.created_at
         }
       : { is_critical: false, reasons: [], auto_flags: [], manual_flags: [] }
   };

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 import { Icons } from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,11 @@ export function HighRiskBoard({ beneficiaries }: { beneficiaries: Beneficiary[] 
               <p className='text-muted-foreground text-sm'>
                 {b.village} &middot; {b.gestationalAgeLabel}
               </p>
+              {b.risk.flaggedAt && (
+                <p className='text-muted-foreground text-xs'>
+                  Flagged {formatDistanceToNow(new Date(b.risk.flaggedAt), { addSuffix: true })}
+                </p>
+              )}
             </CardHeader>
             <CardContent className='flex flex-col gap-3'>
               <ul className='list-inside list-disc space-y-1 text-sm'>

@@ -14,6 +14,10 @@ export interface RiskResult {
   // flag (see /dashboard/high-risk's "Mark Reviewed"). Undefined for
   // fixture-only / non-critical beneficiaries with no flag record at all.
   status?: 'ACTIVE' | 'ACKNOWLEDGED';
+  // ISO timestamp of when she was first flagged high-risk — high_risk_flags.created_at,
+  // or the pregnancy's own created_at when there's no relational flag row (mobile-only).
+  // Never updated_at: that changes on Mark Reviewed and would make the flagged date drift.
+  flaggedAt?: string;
 }
 
 export type RiskCategory =
