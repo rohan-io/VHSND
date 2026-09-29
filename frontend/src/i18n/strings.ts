@@ -56,6 +56,8 @@ export const STRINGS = {
     children: { en: "Children", or: "ଶିଶୁମାନେ" },
     alerts: { en: "Alerts", or: "ସତର୍କତା" },
     profile: { en: "Profile", or: "ପ୍ରୋଫାଇଲ" },
+    fieldTeam: { en: "Field Team", or: "ଫିଲ୍ଡ ଟିମ୍" }, // REVIEW
+    checkups: { en: "Checkups", or: "ଯାଞ୍ଚ" }, // REVIEW
   },
 
   // Enum-ish values that live in seed data but read as UI. Mapped for display
@@ -604,6 +606,47 @@ export const STRINGS = {
     },
     submitPostPregnancyFeedback: { en: "Submit", or: "ଦାଖଲ କରନ୍ତୁ" },
     postPregnancyThanks: { en: "Thank you — congratulations again!", or: "ଧନ୍ୟବାଦ — ପୁଣି ଥରେ ଅଭିନନ୍ଦନ!" }, // REVIEW
+
+    // Checkups tab
+    noCheckupsTitle: { en: "No checkups yet", or: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଯାଞ୍ଚ ନାହିଁ" }, // REVIEW
+    noCheckupsBody: {
+      en: "That's okay — your health worker will record your first checkup here after your visit.",
+      or: "ଚିନ୍ତା କରନ୍ତୁ ନାହିଁ — ଆପଣଙ୍କ ପରିଦର୍ଶନ ପରେ ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀ ଆପଣଙ୍କ ପ୍ରଥମ ଯାଞ୍ଚ ଏଠାରେ ରେକର୍ଡ କରିବେ।", // REVIEW
+    },
+
+    // Alerts tab
+    alertsVhsndSection: { en: "VHSND Reminders", or: "VHSND ସ୍ମାରକ" }, // REVIEW
+    alertsCheckupSection: { en: "Checkups & Due Dates", or: "ଯାଞ୍ଚ ଓ ଧାର୍ଯ୍ୟ ତାରିଖ" }, // REVIEW
+    alertsMilestoneSection: { en: "Milestones", or: "ମାଇଲଖୁଣ୍ଟ" }, // REVIEW
+    alertAncUpcoming: { en: "Your next checkup is on {date}", or: "ଆପଣଙ୍କ ପରବର୍ତ୍ତୀ ଯାଞ୍ଚ {date} ରେ ଅଛି" }, // REVIEW
+    alertAncUpcomingBody: {
+      en: "Your health worker will see you then. Bring your MCP card.",
+      or: "ସେତେବେଳେ ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀ ଆପଣଙ୍କୁ ଦେଖିବେ। ଆପଣଙ୍କ MCP କାର୍ଡ ଆଣନ୍ତୁ।", // REVIEW
+    },
+    alertAncOverdue: { en: "Your checkup was due on {date}", or: "ଆପଣଙ୍କ ଯାଞ୍ଚ {date} ରେ ହେବାର ଥିଲା" }, // REVIEW
+    alertAncOverdueBody: {
+      en: "Please contact your health worker to fix a new date.",
+      or: "ନୂଆ ତାରିଖ ସ୍ଥିର କରିବାକୁ ଦୟାକରି ଆପଣଙ୍କ ସ୍ୱାସ୍ଥ୍ୟ କର୍ମୀଙ୍କ ସହ ଯୋଗାଯୋଗ କରନ୍ତୁ।", // REVIEW
+    },
+    alertPmsma: { en: "Free PMSMA checkup on {date}", or: "{date} ରେ ମାଗଣା PMSMA ଯାଞ୍ଚ" }, // REVIEW
+    alertPmsmaBody: {
+      en: "A free check-up with a doctor, for every pregnant woman, on the 9th of each month.",
+      or: "ପ୍ରତି ମାସ ୯ ତାରିଖରେ ପ୍ରତ୍ୟେକ ଗର୍ଭବତୀ ମହିଳାଙ୍କ ପାଇଁ ଡାକ୍ତରଙ୍କ ଦ୍ୱାରା ମାଗଣା ଯାଞ୍ଚ।", // REVIEW
+    },
+    alertVhsndBody: { en: "Come along on {date} — it's free.", or: "{date} ରେ ଆସନ୍ତୁ — ଏହା ମାଗଣା।" }, // REVIEW
+    alertEdd: { en: "Your baby is expected around {date}", or: "ଆପଣଙ୍କ ଶିଶୁ {date} ନିକଟରେ ଆସିବାର ଆଶା" }, // REVIEW
+    alertEddBody: { en: "About {weeks} weeks to go.", or: "ପ୍ରାୟ {weeks} ସପ୍ତାହ ବାକି ଅଛି।" }, // REVIEW
+    whenToday: { en: "Today", or: "ଆଜି" },
+    whenTomorrow: { en: "Tomorrow", or: "ଆସନ୍ତାକାଲି" },
+    whenInDays: { en: "In {n} days", or: "{n} ଦିନରେ" }, // REVIEW
+    whenOverdue: { en: "{n} days ago", or: "{n} ଦିନ ପୂର୍ବେ" }, // REVIEW
+    tagOverdue: { en: "OVERDUE", or: "ବିଳମ୍ବିତ" }, // REVIEW
+    tagMilestone: { en: "MILESTONE", or: "ମାଇଲଖୁଣ୍ଟ" }, // REVIEW
+    allCaughtUp: { en: "All caught up!", or: "ସବୁ ଠିକ୍ ଅଛି!" }, // REVIEW
+    allCaughtUpBody: {
+      en: "Nothing needs your attention right now. We'll remind you when something is coming up.",
+      or: "ବର୍ତ୍ତମାନ କିଛି ଧ୍ୟାନ ଦେବାର ନାହିଁ। କିଛି ଆସିଲେ ଆମେ ଆପଣଙ୍କୁ ମନେ ପକାଇ ଦେବୁ।", // REVIEW
+    },
   },
 } as const;
 

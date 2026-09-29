@@ -153,7 +153,7 @@ export default function AdminDashboardScreen() {
         {/* ESCALATE — the reason this role exists, so it leads the page, full weight. */}
         <View style={styles.escHeaderRow}>
           <Text style={[styles.sectionTitle, styles.escHeading]}>{tr.adminDashboard.criticalEscalations}</Text>
-          <Pressable testID="admin-alerts-btn" onPress={() => router.push("/alerts")} hitSlop={8}>
+          <Pressable testID="admin-alerts-btn" onPress={() => router.push("/(admin)/admin-alerts" as any)} hitSlop={8}>
             <Text style={styles.allAlertsLink}>{tr.adminDashboard.allAlerts}</Text>
           </Pressable>
         </View>
@@ -181,7 +181,7 @@ export default function AdminDashboardScreen() {
               </Pressable>
             ))}
             {escalations.length > ESC_PREVIEW && (
-              <Pressable testID="admin-escalations-view-all" onPress={() => router.push("/alerts?seg=escalations" as any)} style={styles.escMoreRow}>
+              <Pressable testID="admin-escalations-view-all" onPress={() => router.push("/(admin)/admin-alerts?seg=escalations" as any)} style={styles.escMoreRow}>
                 <Text style={styles.escMoreText}>{tr.common.viewAll} ({escalations.length})</Text>
                 <Ionicons name="arrow-forward" size={14} color={t.colors.onStatus} />
               </Pressable>
