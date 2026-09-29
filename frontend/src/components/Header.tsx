@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   const t = useTheme();
   const tr = useTranslation();
   const styles = useMemo(() => makeStyles(t), [t]);
-  const { isSimulatedOffline, toggleSimulatedOffline, pendingCount } = useOfflineSync();
+  const { isOffline, isSimulatedOffline, toggleSimulatedOffline, pendingCount } = useOfflineSync();
   const { user } = useAuth();
 
   return (
@@ -89,21 +89,21 @@ export const Header: React.FC<HeaderProps> = ({
               onPress={toggleSimulatedOffline}
               style={[
                 styles.offlinePill,
-                isSimulatedOffline ? styles.offlinePillActive : styles.onlinePillActive,
+                isOffline ? styles.offlinePillActive : styles.onlinePillActive,
               ]}
             >
               <Ionicons
-                name={isSimulatedOffline ? "cloud-offline" : "cloud-done"}
+                name={isOffline ? "cloud-offline" : "cloud-done"}
                 size={14}
-                color={isSimulatedOffline ? t.colors.error : t.colors.success}
+                color={isOffline ? t.colors.error : t.colors.success}
               />
               <Text
                 style={[
                   styles.offlinePillText,
-                  { color: isSimulatedOffline ? t.colors.error : t.colors.brandDark },
+                  { color: isOffline ? t.colors.error : t.colors.brandDark },
                 ]}
               >
-                {isSimulatedOffline ? tr.common.offline : tr.common.online}
+                {isOffline ? tr.common.offline : tr.common.online}
               </Text>
             </Pressable>
           )}
@@ -136,8 +136,8 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
       </View>
 
-      {/* Simulated Offline Alert Ribbon if Offline */}
-      {isSimulatedOffline && (
+      {/* Offline Alert Ribbon — manual simulate toggle, or a real outage */}
+      {isOffline && (
         <Pressable
           testID="offline-mode-warning-banner"
           onPress={() => router.push("/sync")}

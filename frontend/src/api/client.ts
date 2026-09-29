@@ -1,11 +1,29 @@
 import { storage } from "@/src/utils/storage";
 import { demoRequest } from "@/src/api/demoDb";
+import { shouldFallbackToDemoData } from "@/src/api/syncDecision";
+import { reportReachability } from "@/src/api/connectivity";
 
-// Standalone offline demo: when on, every request is served from a bundled local
-// SQLite dataset (src/api/demoDb.ts) and no network call is ever made.
-export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+// Three data-layer modes, picked via EXPO_PUBLIC_API_MODE:
+//   - "local"   : real HTTP to the local-api dev server (default) — falls back
+//                 to offline demo data per-request if that server is unreachable.
+//   - "offline" : bundled local SQLite dataset (src/api/demoDb.ts), no network
+//                 call ever made. This is what the shipped APK's "preview"
+//                 EAS build profile sets via the legacy EXPO_PUBLIC_DEMO_MODE=true.
+//   - "mongodb" : the production FastAPI/Mongo backend (future).
+export type ApiMode = "local" | "offline" | "mongodb";
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || "";
+const legacyDemoMode = process.env.EXPO_PUBLIC_DEMO_MODE === "true";
+export const API_MODE: ApiMode =
+  (process.env.EXPO_PUBLIC_API_MODE as ApiMode) || (legacyDemoMode ? "offline" : "local");
+
+// Kept for existing callers/back-compat with the old flag's meaning.
+export const DEMO_MODE = API_MODE === "offline";
+
+const DEFAULT_LOCAL_API_URL = "http://localhost:3001";
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.EXPO_PUBLIC_BACKEND_URL ||
+  (API_MODE === "local" ? DEFAULT_LOCAL_API_URL : "");
 export const API_BASE_URL = `${BACKEND_URL}/api`;
 
 export const TOKEN_KEY = "mch_auth_token";
@@ -89,6 +107,7 @@ export async function apiRequest<T = any>(
 
   try {
     const res = await fetch(url, fetchOptions);
+    if (API_MODE === "local") reportReachability(true); // any response at all means the server is up
 
     if (res.status === 401) {
       await removeAuthToken();
@@ -115,6 +134,25 @@ export async function apiRequest<T = any>(
   } catch (error: any) {
     if (error instanceof ApiError) {
       throw error;
+    }
+    // Network-level failure only (fetch itself threw, or timed out) — a real
+    // response from the server (4xx/5xx) already threw ApiError above and
+    // never reaches here.
+    if (API_MODE === "local") {
+      reportReachability(false);
+      if (shouldFallbackToDemoData(options.method)) {
+        // A read: the local-api dev server being unreachable shouldn't break
+        // the app — show cached/bundled data instead (the offline badge
+        // labels this state; see Header.tsx).
+        console.warn("Cannot reach API server. Showing cached data.");
+        return demoRequest<T>(path.startsWith("/") ? path : `/${path}`, options);
+      }
+      // A write: falling back to demo data here would silently discard it
+      // (see the mobile-dashboard sync audit, Findings 3 & 4) — the caller
+      // must see this error so it can queue the record for later sync
+      // instead (register.tsx / anc/record.tsx / child/register.tsx already
+      // do this in their own catch blocks).
+      throw new ApiError("Can't reach the server. Saved for sync instead.", 0);
     }
     if (error?.name === "AbortError") {
       throw new ApiError(

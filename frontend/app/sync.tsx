@@ -29,6 +29,7 @@ export default function SyncScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const { showToast } = useToast();
   const {
+    isOffline,
     isSimulatedOffline,
     toggleSimulatedOffline,
     pendingItems,
@@ -53,10 +54,10 @@ export default function SyncScreen() {
       <Header title="Offline Sync Center" showBack showOfflineToggle={false} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Connection status */}
-        <View style={[styles.statusCard, isSimulatedOffline ? styles.statusOffline : styles.statusOnline]}>
-          <Ionicons name={isSimulatedOffline ? "cloud-offline" : "cloud-done"} size={30} color={isSimulatedOffline ? t.colors.error : t.colors.success} />
-          <Text style={[styles.statusTitle, { color: isSimulatedOffline ? t.colors.errorText : t.colors.successText }]}>
-            {isSimulatedOffline ? "Simulated Offline Mode" : "Connected to Central Server"}
+        <View style={[styles.statusCard, isOffline ? styles.statusOffline : styles.statusOnline]}>
+          <Ionicons name={isOffline ? "cloud-offline" : "cloud-done"} size={30} color={isOffline ? t.colors.error : t.colors.success} />
+          <Text style={[styles.statusTitle, { color: isOffline ? t.colors.errorText : t.colors.successText }]}>
+            {isSimulatedOffline ? "Simulated Offline Mode" : isOffline ? "Can't Reach Central Server" : "Connected to Central Server"}
           </Text>
           <Text style={styles.statusSub}>Last synchronized: {lastSyncTime || "—"}</Text>
         </View>
@@ -116,12 +117,16 @@ export default function SyncScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.queueTitle}>{item.display_title}</Text>
-                <Text style={styles.queueSub}>{item.display_subtitle}</Text>
+                <Text style={styles.queueSub}>
+                  {item.lastSyncError ? `Failed: ${item.lastSyncError}` : item.display_subtitle}
+                </Text>
                 <Text style={styles.queueTime}>{new Date(item.timestamp).toLocaleString()}</Text>
               </View>
-              <View style={styles.waitingPill}>
-                <Ionicons name="time" size={11} color={t.colors.warningText} />
-                <Text style={styles.waitingText}>Waiting</Text>
+              <View style={[styles.waitingPill, item.lastSyncError && styles.failedPill]}>
+                <Ionicons name={item.lastSyncError ? "alert-circle" : "time"} size={11} color={item.lastSyncError ? t.colors.error : t.colors.warningText} />
+                <Text style={[styles.waitingText, item.lastSyncError && styles.failedText]}>
+                  {item.lastSyncError ? "Will retry" : "Waiting"}
+                </Text>
               </View>
             </View>
           ))
@@ -165,6 +170,8 @@ const makeStyles = (t: Theme) =>
     queueTime: { fontSize: 12, color: t.colors.textMuted, marginTop: 2 },
     waitingPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.colors.warningLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
     waitingText: { fontSize: 12, fontWeight: "800", color: t.colors.warningText },
+    failedPill: { backgroundColor: t.colors.errorLight },
+    failedText: { color: t.colors.error },
     flowNote: { marginTop: 20, backgroundColor: t.colors.surfaceTertiary, borderRadius: t.radius.md, padding: 14, borderWidth: 1, borderColor: t.colors.border },
     flowHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
     flowTitle: { fontSize: 13, fontWeight: "800", color: t.colors.textPrimary },

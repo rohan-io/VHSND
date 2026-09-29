@@ -16,7 +16,35 @@
         "buildType": "apk"
       }
     },
+    "hosted": {
+      "distribution": "internal",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_DEMO_MODE": "false",
+        "EXPO_PUBLIC_API_MODE": "local"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "lan-dev": {
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_DEMO_MODE": "false",
+        "EXPO_PUBLIC_API_MODE": "local",
+        "EXPO_PUBLIC_ALLOW_CLEARTEXT": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_DEMO_MODE": "false",
+        "EXPO_PUBLIC_API_MODE": "local"
+      },
       "android": {
         "buildType": "app-bundle"
       }

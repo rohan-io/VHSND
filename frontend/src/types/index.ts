@@ -259,6 +259,10 @@ export interface OfflineSyncItem {
   timestamp: string;
   display_title: string;
   display_subtitle: string;
+  // Set when a sync attempt for this item came back "failed" — kept queued
+  // for retry rather than dropped. Cleared implicitly once it applies (the
+  // item leaves the queue entirely).
+  lastSyncError?: string;
 }
 
 // An ASHA's stats as seen on her supervising ANM's dashboard (read-only —
